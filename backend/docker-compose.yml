@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: yosan
+      POSTGRES_PASSWORD: yosan
+      POSTGRES_DB: yosan
+    ports:
+      - "5432:5432"
+    volumes:
+      - yosan_pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://yosan:yosan@db:5432/yosan
+      SECRET_KEY: change-me
+      CORS_ORIGINS: http://localhost:3000,http://localhost:19006
+      SEED_ADMIN_EMAIL: admin@yosan.com
+      SEED_ADMIN_PASSWORD: admin1234
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  yosan_pgdata:

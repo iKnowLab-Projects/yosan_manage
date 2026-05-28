@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "요산 모니터링",
+    "slug": "yosan-monitor",
+    "scheme": "yosan",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yosan.monitor",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.yosan.monitor",
+      "useNextNotificationsApi": true
+    },
+    "plugins": ["expo-router", "expo-notifications"],
+    "extra": {
+      "apiBase": "http://192.168.0.152:8000"
+    }
+  }
+}
