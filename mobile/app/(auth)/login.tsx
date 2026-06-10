@@ -45,7 +45,7 @@ export default function Login() {
         name: data.name,
         role: data.role,
       });
-      router.replace("/(app)/home");
+      router.replace("/(app)/mileage");
     } catch (err: any) {
       Alert.alert("로그인 실패", err?.message ?? "오류가 발생했습니다.");
     } finally {
@@ -58,7 +58,7 @@ export default function Login() {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={styles.title}>요산 모니터링</Text>
+      <Text style={styles.title}>통풍식이 마일리지</Text>
       <Text style={styles.subtitle}>환자 보고 앱</Text>
 
       <TextInput
@@ -87,9 +87,24 @@ export default function Login() {
         </Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        onPress={() => router.push("/(auth)/register")}
+        style={styles.registerLink}
+      >
+        <Text style={styles.registerLinkText}>가입 신청</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => router.push("/(auth)/reset-password")}
+        style={styles.subLink}
+      >
+        <Text style={styles.subLinkText}>비밀번호 초기화</Text>
+      </TouchableOpacity>
+
       <Text style={styles.help}>
-        계정은 관리자에게 문의해 주세요.
+        문의는 관리자에게 연락해 주세요.
       </Text>
+      <Text style={styles.phone}>010-XXXX-XXXX</Text>
     </KeyboardAvoidingView>
   );
 }
@@ -120,5 +135,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonText: { color: "white", fontWeight: "600", fontSize: 16 },
+  registerLink: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    alignItems: "center",
+  },
+  registerLinkText: { color: "#2563eb", fontWeight: "600", fontSize: 16 },
+  subLink: {
+    marginTop: 10,
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  subLinkText: {
+    color: "#64748b",
+    fontSize: 14,
+    textDecorationLine: "underline",
+  },
   help: { marginTop: 24, color: "#94a3b8", textAlign: "center" },
+  phone: {
+    marginTop: 6,
+    color: "#475569",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

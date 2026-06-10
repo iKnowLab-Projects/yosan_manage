@@ -21,12 +21,12 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
-        name="home"
-        options={{ title: "오늘 보고", tabBarLabel: "보고" }}
+        name="mileage"
+        options={{ title: "마일리지", tabBarLabel: "마일리지" }}
       />
       <Tabs.Screen
-        name="history"
-        options={{ title: "보고 이력", tabBarLabel: "이력" }}
+        name="survey"
+        options={{ title: "설문", tabBarLabel: "설문" }}
       />
       <Tabs.Screen
         name="notifications"

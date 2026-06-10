@@ -27,6 +27,7 @@ function NewPatientForm() {
     baseline_uric_acid: "",
     medications: "",
     notes: "",
+    survey_group: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +58,7 @@ function NewPatientForm() {
               : null,
             medications: form.medications || null,
             notes: form.notes || null,
+            survey_group: form.survey_group || null,
           },
         }),
       });
@@ -155,6 +157,17 @@ function NewPatientForm() {
               onChange={(e) => update("baseline_uric_acid", e.target.value)}
               className="input"
             />
+          </Field>
+          <Field label="설문 그룹">
+            <select
+              value={form.survey_group}
+              onChange={(e) => update("survey_group", e.target.value)}
+              className="input"
+            >
+              <option value="">선택 안 함</option>
+              <option value="B">B군 (저요산식단)</option>
+              <option value="C">C군 (DASH식단)</option>
+            </select>
           </Field>
         </div>
         <Field label="복용 약물">

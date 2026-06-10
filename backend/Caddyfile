@@ -1,0 +1,41 @@
+# Caddy 2 리버스 프록시 설정
+# Caddy 가 자동으로 Let's Encrypt 인증서를 발급/갱신합니다.
+# DOMAIN_API 환경변수는 docker-compose.prod.yml 에서 .env.production 으로부터 주입됩니다.
+#
+# 도메인 종류:
+#  - 본인 소유 도메인 (예: api.yosan.kr)  ← 권장
+#  - DuckDNS 등 무료 동적 DNS (예: yosan.duckdns.org) ← 도메인 없을 때
+#  - sslip.io (IP 기반, 예: 1-2-3-4.sslip.io) ← 매우 간단한 임시
+
+{
+    email {$ACME_EMAIL}
+    # 운영 진입 전 인증서 발급 디버깅 시 아래 한 줄을 임시로 활성화하면 Let's Encrypt 의 staging 환경을 씁니다 (rate limit 회피용).
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN_API} {
+    # 백엔드 컨테이너로 프록시. 백엔드는 호스트에 포트 노출 안 함.
+    reverse_proxy api:26610 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # 보안 헤더
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # 관리자 웹이 별도 도메인인 경우 CSP 등은 그쪽에서 처리
+    }
+
+    # 접근 로그 (필요 시 stdout)
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+
+    # 응답 압축
+    encode zstd gzip
+}

@@ -3,6 +3,8 @@
 *.log
 .env
 .env.local
+.env.production
+backend/creds/
 
 # Python
 __pycache__/
@@ -28,3 +30,9 @@ build/
 # DB / data
 *.sqlite3
 yosan_pgdata/
+
+# Firebase / FCM 비밀 키 (절대 커밋 금지)
+mobile/google-services.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+GoogleService-Info.plist

@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.patient import PatientProfile
 from app.models.report import DailyReport
 from app.models.user import User, UserRole
+from app.schemas.auth import ApproveIn
 from app.schemas.user import (
     PatientCreate,
     PatientListItem,
@@ -41,7 +42,7 @@ def list_patients(
     rows = (
         db.query(User, last_report_subq.c.last_date)
         .outerjoin(last_report_subq, last_report_subq.c.pid == User.id)
-        .filter(User.role == UserRole.PATIENT)
+        .filter(User.role == UserRole.PATIENT, User.is_active == True)  # noqa: E712
         .order_by(User.created_at.desc())
         .all()
     )
@@ -65,6 +66,64 @@ def list_patients(
             )
         )
     return items
+
+
+@router.get("/pending", response_model=List[PatientOut])
+def list_pending(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> List[PatientOut]:
+    """가입 신청 후 승인 대기 중인 환자 목록."""
+    users = (
+        db.query(User)
+        .options(joinedload(User.patient_profile))
+        .filter(User.role == UserRole.PATIENT, User.is_active == False)  # noqa: E712
+        .order_by(User.created_at.asc())
+        .all()
+    )
+    return [_to_patient_out(u) for u in users]
+
+
+@router.post("/{patient_id}/approve", response_model=PatientOut)
+def approve_patient(
+    patient_id: int,
+    payload: ApproveIn,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> PatientOut:
+    """가입 신청 환자 승인 + 설문 그룹 지정."""
+    user = (
+        db.query(User)
+        .options(joinedload(User.patient_profile))
+        .filter(User.id == patient_id, User.role == UserRole.PATIENT)
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="환자를 찾을 수 없습니다.")
+    user.is_active = True
+    if user.patient_profile:
+        user.patient_profile.survey_group = payload.survey_group
+    db.commit()
+    db.refresh(user)
+    return _to_patient_out(user)
+
+
+@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    """환자 계정 삭제 (가입 거절 / 탈퇴 처리). cascade로 프로필·보고·설문·마일리지 모두 함께 삭제."""
+    user = (
+        db.query(User)
+        .filter(User.id == patient_id, User.role == UserRole.PATIENT)
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="환자를 찾을 수 없습니다.")
+    db.delete(user)
+    db.commit()
 
 
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)

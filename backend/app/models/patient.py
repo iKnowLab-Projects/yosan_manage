@@ -20,6 +20,7 @@ class PatientProfile(Base):
     baseline_uric_acid: Mapped[float | None] = mapped_column(Float)
     medications: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+    survey_group: Mapped[str | None] = mapped_column(String(1))  # 'B' or 'C'
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

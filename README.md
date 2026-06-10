@@ -1,6 +1,18 @@
-# 요산 환자 모니터링 통합 시스템
+# 통풍식이 마일리지 — 요산 환자 모니터링 통합 시스템
 
 요산(통풍) 환자가 매일 자신의 식단과 건강 상태를 보고하고, 관리자는 이를 통합 관리하면서 미보고 환자에게 알림을 보낼 수 있는 풀스택 시스템.
+
+## 📚 문서
+
+| 문서 | 내용 |
+|---|---|
+| **[REPORT.md](REPORT.md)** | 시스템 설계 및 구현 보고서 — 도메인, ER, API, 모바일 흐름 전반 (현재 v0.4) |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | 운영 배포 가이드 — Caddy + Let's Encrypt + 자체 도메인으로 Cloudflare 임시 터널 종료 |
+| **[DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md)** | 새 디바이스에서 백지 상태로부터 동일 환경 재현 절차 |
+| **[backend/README.md](backend/README.md)** | 백엔드 모듈 사용법 |
+| **[web-admin/README.md](web-admin/README.md)** | 관리자 웹 모듈 사용법 |
+| **[mobile/README.md](mobile/README.md)** | 모바일 앱 사용법 |
+| **[mobile/BUILD.md](mobile/BUILD.md)** | APK 빌드/배포 상세 가이드 |
 
 ## 모듈 구성
 
@@ -23,6 +35,9 @@ yosan/
 │       │   ├── __init__.py
 │       │   ├── config.py               # pydantic-settings 환경설정
 │       │   └── security.py             # JWT / bcrypt 헬퍼
+│       ├── data/                       # 정적 데이터 (설문 템플릿)
+│       │   ├── __init__.py
+│       │   └── survey_templates.py     # B군/C군 + MARS-5 문항·선택지
 │       ├── db/
 │       │   ├── __init__.py
 │       │   ├── session.py              # SQLAlchemy Engine/Session/Base
@@ -30,16 +45,20 @@ yosan/
 │       ├── models/                     # SQLAlchemy ORM
 │       │   ├── __init__.py
 │       │   ├── user.py                 # User + UserRole(admin/patient)
-│       │   ├── patient.py              # PatientProfile
+│       │   ├── patient.py              # PatientProfile (+ survey_group)
 │       │   ├── report.py               # DailyReport + MealEntry
 │       │   ├── device.py               # DeviceToken
-│       │   └── notification.py
+│       │   ├── notification.py
+│       │   ├── survey.py               # SurveySubmission + SurveyAnswer
+│       │   └── mileage.py              # MileageCompletion (+ 금액·사이클 상수)
 │       ├── schemas/                    # Pydantic I/O 모델
 │       │   ├── __init__.py
 │       │   ├── auth.py
 │       │   ├── user.py
 │       │   ├── report.py
-│       │   └── notification.py
+│       │   ├── notification.py
+│       │   ├── survey.py
+│       │   └── mileage.py
 │       ├── services/
 │       │   ├── __init__.py
 │       │   └── push.py                 # Firebase Admin 래퍼 (+ 스텁 모드)
@@ -54,7 +73,9 @@ yosan/
 │                   ├── auth.py         # POST /auth/login
 │                   ├── patients.py     # 환자 CRUD + 미보고 식별
 │                   ├── reports.py      # 일일 보고 upsert/조회
-│                   └── notifications.py # 푸시 발송 + 디바이스 토큰
+│                   ├── notifications.py # 푸시 발송 + 디바이스 토큰
+│                   ├── surveys.py      # 설문 템플릿/제출/이력
+│                   └── mileage.py      # 마일리지 조회/토글/config
 │
 ├── web-admin/                          # Next.js 14 (App Router) + Tailwind
 │   ├── package.json
@@ -67,7 +88,8 @@ yosan/
 │   ├── lib/
 │   │   └── api.ts                      # fetch 래퍼 + localStorage 세션
 │   ├── components/
-│   │   └── AuthGuard.tsx               # 관리자 토큰 검증 + 헤더 UI
+│   │   ├── AuthGuard.tsx               # 관리자 토큰 검증 + 헤더 UI
+│   │   └── MileagePanel.tsx            # 24칸 마일리지 격자 + 클릭 토글
 │   └── app/
 │       ├── layout.tsx
 │       ├── page.tsx                    # 토큰 보유 여부에 따라 분기
@@ -88,10 +110,12 @@ yosan/
     ├── app.json                        # Expo 설정 (apiBase 포함)
     ├── babel.config.js
     ├── tsconfig.json
+    ├── eas.json                        # EAS Build 프로파일 (preview=APK, production=AAB)
     ├── README.md
+    ├── BUILD.md                        # APK/IPA 빌드 및 설치 가이드
     ├── lib/
     │   ├── api.ts                      # fetch 래퍼 + AsyncStorage 세션
-    │   └── push.ts                     # Expo Push 토큰 발급/등록
+    │   └── push.ts                     # Expo Push 토큰 발급/등록 (Expo Go 자동 우회)
     └── app/
         ├── _layout.tsx
         ├── index.tsx                   # 로그인 상태에 따라 분기
@@ -99,37 +123,51 @@ yosan/
         │   └── login.tsx
         └── (app)/
             ├── _layout.tsx             # 탭 네비게이션 + 푸시 권한 요청
+            ├── mileage.tsx             # 24개월 마일리지 격자 + 누적 금액
             ├── home.tsx                # 오늘의 식단/건강 보고
+            ├── survey.tsx              # B/C군 설문 제출 + 최근 제출 이력
             ├── history.tsx             # 보고 이력
             ├── notifications.tsx       # 관리자 알림함
             └── profile.tsx             # 내 정보 + 로그아웃
 ```
-파일 70개 (백엔드 35 · 웹 관리자 17 · 모바일 15 · 루트 3).
+파일 83개 (백엔드 43 · 웹 관리자 18 · 모바일 19 · 루트 3) — 사용자 제공 xlsx 2개 별도.
 
 | 역할 | 인터페이스 | 위치 |
 |---|---|---|
 | 관리자 | 웹 대시보드 | `web-admin/` (포트 3000) |
 | 환자 | iOS/Android 앱 | `mobile/` (Expo) |
-| 데이터/통신 | REST API | `backend/` (포트 8000) |
+| 데이터/통신 | REST API | `backend/` (내부 포트 26610) |
 
 ## 주요 기능
 
-### 환자 (모바일 앱)
+### 환자 (모바일 앱 — "통풍식이 마일리지")
 - 이메일/비밀번호 로그인
+- **마일리지 현황** — 24개월 × 4 사이클 격자, 매월 채우는 작은 동그라미(3,000원) + 6/12/18/24개월차 큰 동그라미(병원 방문, 5,000원), 누적 금액 표시
 - 일일 보고 작성 (수정 가능)
   - 건강: 체중, 요산 수치, 수분 섭취, 운동 시간, 통증 강도/부위, 통풍 발작, 약 복용
   - 식단: 아침/점심/저녁/간식별 음식 내용 및 퓨린 함량 추정
   - 자유 메모
-- 보고 이력 조회
+- **설문 제출** — 환자가 배정된 그룹에 따라 다음 중 한 가지를 응답
+  - **B군 (저요산식단)**: 식이 빈도 11문항 + MARS-5 복약 행동 5문항
+  - **C군 (DASH식단)**: 식이 빈도 11문항 + MARS-5 복약 행동 5문항
+- 보고 / 설문 이력 조회
 - 관리자가 보낸 푸시 알림 수신 (Expo Notifications)
 - 알림함에서 읽음 처리
 
 ### 관리자 (웹)
 - 로그인
 - 환자 목록 (최근 보고일·미보고 일수 표시, 오늘 미보고 강조)
-- 환자 등록 (초기 비밀번호 발급 + 의료 프로필 입력)
-- 환자 상세 + 일일 보고 이력
+- 환자 등록 (초기 비밀번호 발급 + 의료 프로필 입력 + **설문 그룹 B/C 지정**)
+- 환자 상세 + 일일 보고 이력 + **설문 제출 이력** + **마일리지 토글 격자**
 - 푸시 알림 발송 (오늘 미보고 일괄 선택 가능)
+
+### 마일리지 구조 (요약)
+| 구분 | 단위 | 금액 | 위치 |
+|---|---|---|---|
+| 매월 미션 | 1개월 | 3,000원 | 1~5, 7~11, 13~17, 19~23 월차 |
+| 병원 방문 | 6개월 | 5,000원 | 6, 12, 18, 24 월차 |
+| **사이클당** | 6개월 | **20,000원** | 3,000 × 5 + 5,000 × 1 |
+| **전체 24개월** | 4 사이클 | **80,000원** | — |
 
 ## 빠른 시작
 
@@ -140,8 +178,8 @@ yosan/
 cd backend
 docker compose up --build
 ```
-- API: http://localhost:8000
-- Swagger: http://localhost:8000/docs
+- API: http://localhost:26610
+- Swagger: http://localhost:26610/docs
 - 시드 관리자: `admin@yosan.local` / `admin1234`
 
 ### 2. 관리자 웹
@@ -153,15 +191,41 @@ npm run dev
 ```
 http://localhost:3000 → 관리자 계정으로 로그인 → 환자 등록.
 
-### 3. 환자 모바일
+### 3. 환자 모바일 (Android APK)
+
+본 프로젝트의 모바일 배포 방식은 **EAS Build로 생성한 APK를 환자 디바이스에 직접 설치**하는 단일 경로입니다. Expo Go는 SDK 53+에서 백그라운드 푸시를 제거했기 때문에 운영은 물론 푸시 테스트 단계에서도 사용하지 않습니다. iOS는 후속 마일스톤에서 다룹니다.
+
+#### 최초 1회 준비
 ```powershell
 cd mobile
 npm install
-npx expo start
+npm install -g eas-cli
+eas login                     # 무료 Expo 계정
+eas init                      # app.json에 projectId 기입
 ```
-Expo Go 또는 시뮬레이터로 접속. 관리자가 등록해 준 환자 계정으로 로그인.
 
-> ⚠️ Android 에뮬레이터에서 백엔드에 접속하려면 `mobile/app.json`의 `extra.apiBase`가 `http://10.0.2.2:8000` 으로 설정되어야 합니다. iOS 시뮬레이터는 `http://localhost:8000`을 사용합니다.
+#### 환자 배포용 APK
+```powershell
+eas build --platform android --profile preview
+```
+빌드 완료 후 EAS 대시보드의 다운로드 링크 → 카카오톡/USB로 환자 폰 전달 → 설치 → 백그라운드 푸시 정상 동작.
+
+#### 개발 빠른 반복 (선택)
+JS 코드를 자주 변경하며 푸시 포함 동작을 디바이스에서 보고 싶다면 dev client APK를 한 번 빌드해 본인 폰에 설치한 뒤, 이후엔 `npx expo start --dev-client` 로 핫리로드:
+```powershell
+eas build --platform android --profile development
+# 빌드된 APK 본인 폰에 설치 (최초 1회)
+npx expo start --dev-client
+```
+
+> 📡 **백엔드 LAN 접근 설정**
+> - `mobile/app.json` 의 `extra.apiBase` 가 공인 IP:포트 (예: `http://210.107.197.58:26610`) 또는 LAN IP (예: `http://192.168.0.152:26610`) 인지 확인
+> - Windows 방화벽에서 26610 포트를 같은 네트워크에 허용:
+>   ```powershell
+>   New-NetFirewallRule -DisplayName "Yosan API 26610" -Direction Inbound -LocalPort 26610 -Protocol TCP -Action Allow
+>   ```
+
+자세한 빌드·서명·OTA 업데이트·문제 해결 가이드: [`mobile/BUILD.md`](mobile/BUILD.md)
 
 ## 푸시 알림 설정 (선택)
 
@@ -179,7 +243,7 @@ Expo Go 또는 시뮬레이터로 접속. 관리자가 등록해 준 환자 계�
 - `notifications` (관리자 발송 이력)
 
 ## API 개요
-전체 명세는 `http://localhost:8000/docs` 에서 확인. 핵심:
+전체 명세는 `http://localhost:26610/docs` 에서 확인. 핵심:
 - `POST /api/v1/auth/login`
 - `GET  /api/v1/patients` (admin) — 미보고 환자 식별 포함
 - `POST /api/v1/patients` (admin)

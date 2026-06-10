@@ -3,6 +3,9 @@ from app.models.patient import PatientProfile
 from app.models.report import DailyReport, MealEntry, MealType
 from app.models.device import DeviceToken
 from app.models.notification import Notification
+from app.models.survey import SurveySubmission, SurveyAnswer
+from app.models.mileage import MileageCompletion
+from app.models.password_reset import PasswordResetRequest
 
 __all__ = [
     "User",
@@ -13,4 +16,8 @@ __all__ = [
     "MealType",
     "DeviceToken",
     "Notification",
+    "SurveySubmission",
+    "SurveyAnswer",
+    "MileageCompletion",
+    "PasswordResetRequest",
 ]

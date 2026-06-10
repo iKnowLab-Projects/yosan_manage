@@ -20,14 +20,40 @@ type PatientMe = {
 export default function Profile() {
   const router = useRouter();
   const [me, setMe] = useState<PatientMe | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    setError(null);
+    api<PatientMe>("/api/v1/patients/me")
+      .then(setMe)
+      .catch((err: any) => setError(err?.message ?? "조회 실패"));
+  };
 
   useEffect(() => {
-    api<PatientMe>("/api/v1/patients/me").then(setMe).catch(() => {});
+    load();
   }, []);
 
   async function logout() {
     await clearSession();
     router.replace("/(auth)/login");
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorTitle}>내 정보를 불러올 수 없습니다</Text>
+        <Text style={styles.errorBody}>{error}</Text>
+        <TouchableOpacity style={styles.retry} onPress={load}>
+          <Text style={styles.retryText}>다시 시도</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.logout, { marginTop: 12 }]}
+          onPress={logout}
+        >
+          <Text style={styles.logoutText}>로그아웃</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   if (!me) {
@@ -76,7 +102,26 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  errorTitle: { fontWeight: "700", color: "#991b1b", marginBottom: 6 },
+  errorBody: {
+    color: "#475569",
+    textAlign: "center",
+    marginBottom: 12,
+    fontSize: 13,
+  },
+  retry: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: { color: "white", fontWeight: "600" },
   card: {
     backgroundColor: "white",
     padding: 16,

@@ -20,8 +20,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     return null;
   }
 
-  if (!Device.isDevice) {
-    console.warn("푸시 알림은 실제 디바이스에서만 동작합니다.");
+  // iOS 시뮬레이터만 원격 푸시 토큰 발급 불가. Android 에뮬레이터는 GPS 있으면 가능.
+  if (Platform.OS === "ios" && !Device.isDevice) {
+    console.warn("iOS 시뮬레이터는 원격 푸시를 지원하지 않습니다.");
     return null;
   }
 

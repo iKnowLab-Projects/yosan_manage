@@ -1,5 +1,5 @@
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:26610";
 
 const TOKEN_KEY = "yosan_admin_token";
 const USER_KEY = "yosan_admin_user";
@@ -80,6 +80,41 @@ export type PatientProfile = {
   baseline_uric_acid?: number | null;
   medications?: string | null;
   notes?: string | null;
+  survey_group?: "B" | "C" | null;
+};
+
+export type SurveyAnswer = {
+  question_code: string;
+  choice_index: number;
+  choice_label: string;
+};
+
+export type SurveySubmission = {
+  id: number;
+  patient_id: number;
+  survey_group: "B" | "C";
+  check_date: string;
+  notes?: string | null;
+  submitted_at: string;
+  answers: SurveyAnswer[];
+};
+
+export type MileageMonth = {
+  month_index: number;
+  is_hospital_visit: boolean;
+  amount: number;
+  completed: boolean;
+  completed_at?: string | null;
+  note?: string | null;
+};
+
+export type MileageSummary = {
+  total_months: number;
+  completed_count: number;
+  earned_amount: number;
+  max_amount: number;
+  cycles_completed: number;
+  months: MileageMonth[];
 };
 
 export type Patient = {

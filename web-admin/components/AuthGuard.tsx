@@ -41,6 +41,12 @@ export default function AuthGuard({
               <a className="hover:underline" href="/patients">
                 환자 관리
               </a>
+              <a className="hover:underline" href="/pending">
+                가입 요청
+              </a>
+              <a className="hover:underline" href="/password-resets">
+                비밀번호 초기화
+              </a>
               <a className="hover:underline" href="/notifications">
                 알림 발송
               </a>

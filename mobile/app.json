@@ -1,11 +1,12 @@
 {
   "expo": {
-    "name": "요산 모니터링",
+    "name": "통풍식이 마일리지",
     "slug": "yosan-monitor",
     "scheme": "yosan",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "platforms": ["android", "ios"],
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
@@ -14,16 +15,35 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yosan.monitor",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "remote-notification"
+        ]
       }
     },
     "android": {
       "package": "com.yosan.monitor",
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json"
     },
-    "plugins": ["expo-router", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
     "extra": {
-      "apiBase": "http://192.168.0.152:8000"
+      "apiBase": "https://investigations-contributors-burton-island.trycloudflare.com",
+      "router": {},
+      "eas": {
+        "projectId": "32d09c89-fecd-4b4f-9a0d-d9456e4eb4dc"
+      }
+    },
+    "owner": "ghkook",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/32d09c89-fecd-4b4f-9a0d-d9456e4eb4dc"
     }
   }
 }

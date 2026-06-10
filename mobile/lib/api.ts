@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
 export const API_BASE: string =
-  (Constants.expoConfig?.extra as any)?.apiBase ?? "http://localhost:8000";
+  (Constants.expoConfig?.extra as any)?.apiBase ?? "http://localhost:26610";
 
 const TOKEN_KEY = "yosan_token";
 const USER_KEY = "yosan_user";
@@ -48,7 +48,16 @@ export async function api<T>(
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers });
+  } catch (err: any) {
+    throw new ApiError(
+      `서버에 연결할 수 없습니다.\n${API_BASE}\n(${err?.message ?? "네트워크 오류"})`,
+      0,
+    );
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -93,4 +102,59 @@ export type Notification = {
   category: string;
   read: boolean;
   created_at: string;
+};
+
+export type SurveyQuestion = {
+  code: string;
+  text: string;
+  options: string[];
+};
+
+export type SurveySection = {
+  title: string;
+  questions: SurveyQuestion[];
+};
+
+export type SurveyTemplate = {
+  group: "B" | "C";
+  name: string;
+  description: string;
+  sections: SurveySection[];
+};
+
+export type SurveyAnswerPayload = {
+  question_code: string;
+  choice_index: number;
+};
+
+export type SurveySubmissionAnswer = SurveyAnswerPayload & {
+  choice_label: string;
+};
+
+export type SurveySubmission = {
+  id: number;
+  patient_id: number;
+  survey_group: "B" | "C";
+  check_date: string;
+  notes?: string | null;
+  submitted_at: string;
+  answers: SurveySubmissionAnswer[];
+};
+
+export type MileageMonth = {
+  month_index: number;
+  is_hospital_visit: boolean;
+  amount: number;
+  completed: boolean;
+  completed_at?: string | null;
+  note?: string | null;
+};
+
+export type MileageSummary = {
+  total_months: number;
+  completed_count: number;
+  earned_amount: number;
+  max_amount: number;
+  cycles_completed: number;
+  months: MileageMonth[];
 };

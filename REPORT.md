@@ -1,6 +1,28 @@
-# 요산 환자 모니터링 통합 시스템 — 시스템 설계 및 구현 보고서
+# 통풍식이 마일리지 — 시스템 설계 및 구현 보고서
 
-문서 버전 0.1 · 2026-05-26
+문서 버전 0.4 · 2026-06-10
+
+> **v0.4 변경 요약 (현재)**
+> - **운영 배포 인프라 완성**: `backend/docker-compose.prod.yml` + `Caddyfile` + `.env.production.example` 추가. Caddy 가 Let's Encrypt 자동 발급으로 HTTPS 처리. 개발용 Cloudflare quick tunnel 영구 종료 가능
+> - **푸시 알림 정식 동작**: 백엔드 `services/push.py` 를 Firebase Admin 에서 **Expo Push Service HTTP API** 로 재작성. EAS Credentials 에 Firebase FCM V1 서비스 계정 키 등록 완료. 실 기기 백그라운드/잠금 화면 푸시 검증됨
+> - **회원가입 + 관리자 승인 흐름**: 환자가 모바일에서 직접 가입 신청 → `is_active=false` 로 저장 → 관리자 웹의 "가입 요청" 페이지에서 검토·설문 그룹 지정 후 승인. `/api/v1/auth/register`, `/patients/pending`, `/patients/{id}/approve`, `DELETE /patients/{id}` 4종 엔드포인트 신설
+> - **비밀번호 초기화 — 환자 신청 / 관리자 승인**: 환자가 모바일에서 새 비밀번호와 함께 신청 (즉시 bcrypt 해시, 평문 미보관) → 관리자 웹 "비밀번호 초기화" 메뉴에서 본인 확인 후 승인. 신규 테이블 `password_reset_requests` (사용자당 1건 unique), `/api/v1/auth/password-reset/*` 4종 엔드포인트 신설. 승인 전엔 기존 비밀번호로 계속 로그인 가능
+> - **월간(monthly) 주기 명시**: 마일리지/설문 모두 "월 1회" 단위임이 UI 에 명확하게 드러나도록 정리. 마일리지 alert 제목 "이번 달 미션", 설문 화면은 이번 달에 이미 제출한 기록이 있으면 폼 숨김 + 제출 완료 패널 + 다음 작성 가능 월 안내 + 응답 요약 표시 (다중 제출 클라이언트 잠금)
+> - **모바일 UX 단순화**: "보고" / "이력" 탭 제거. 마일리지 화면은 한 화면에 1 사이클만 표시(←/→ 네비게이션), 현재 진행해야 할 월차는 초록 점선 + ▶ 표시로 강조, 탭하면 "전화 연결 / 설문 작성 / 취소" 이지선다. 금액(원) 표시는 모두 삭제
+> - **에러 가시성 강화**: 모바일 fetch wrapper 가 네트워크 실패 시 시도한 URL 을 alert 에 함께 표시. 관리자 웹의 환자 상세에 "설문 그룹 변경" 인라인 편집기 추가
+> - 문서: `DEPLOYMENT.md` (운영 배포 가이드), `DEVELOPMENT_SETUP.md` (새 디바이스 부트스트랩 가이드) 신설
+
+> **v0.3 변경 요약**
+> - 모바일 앱 이름을 **"통풍식이 마일리지"** 로 변경 (`mobile/app.json`)
+> - **마일리지 점검 기능** 추가: 24개월 × 4 사이클 격자, 매월 3,000원 작은 동그라미 + 6/12/18/24개월차 5,000원 큰 동그라미(병원 방문). 사이클당 20,000원, 전체 80,000원
+> - `mileage_completions` 테이블 신규, `/api/v1/mileage/*` 4종 엔드포인트, 관리자 토글 UI와 환자 격자 화면 추가
+> - 카드뉴스 기능은 본 마일스톤에서 의도적으로 제외
+
+> **v0.2 변경 요약**
+> - 환자 그룹별 설문지(B군 = 저요산식단, C군 = DASH식단)와 공통 MARS-5 복약 행동 척도를 시스템에 통합
+> - `PatientProfile.survey_group` 컬럼, `survey_submissions / survey_answers` 테이블, `/api/v1/surveys/*` 4종 엔드포인트 추가
+> - 모바일 앱에 "설문" 탭 추가, 관리자 웹의 환자 등록/상세에 설문 그룹·이력 표시
+> - 배포 모델 변경: Expo Go가 SDK 53+ 부터 백그라운드 푸시를 제거 → **EAS Build로 APK/IPA를 만들어 직접 설치**하는 방식을 정식 채택 (`mobile/eas.json` + `mobile/BUILD.md`)
 
 ---
 
@@ -22,10 +44,13 @@
 ### 1.3 범위 (MVP)
 | 영역 | 포함 | 보류 |
 |---|---|---|
-| 환자 인증 | 이메일/비밀번호 로그인 | 비밀번호 재설정, 소셜 로그인 |
+| 환자 인증 | 이메일/비밀번호 로그인, **자가 가입 신청 + 관리자 승인 (v0.4)**, **비밀번호 초기화 신청 + 관리자 승인 (v0.4)** | 소셜 로그인, 자동 본인 인증(SMS/이메일 OTP) |
 | 보고 | 식단(아침/점심/저녁/간식) + 건강(체중·요산·통증·복약 등) | 음성/사진 업로드, 푸린 DB 자동 매칭 |
-| 관리자 | 환자 등록·목록·상세, 미보고 식별, 푸시 발송 | 통계 차트, 권한 분리(슈퍼관리자 등) |
-| 푸시 | Expo Push / FCM 발송, 토큰 등록, 알림함 | 자동 스케줄러(미보고 자동 푸시), 인앱 채팅 |
+| **설문** | **B군(저요산식단) / C군(DASH식단) FFQ 11문항 + MARS-5 5문항, 그룹별 템플릿 분기, 응답 저장** | **자동 점수화·통계 리포트, 주기적 알림 트리거** |
+| **마일리지** | **24개월 격자(소 3,000 / 대 5,000) · 누적 금액 표시 · 관리자 토글** | **자동 적립(설문/보고 제출 연계), 송금 자동화, 환자 자가 신청** |
+| **카드뉴스** | — | 본 마일스톤에서 제외 |
+| 관리자 | 환자 등록·목록·상세, 설문 그룹 지정, 미보고 식별, 푸시 발송, **마일리지 토글** | 통계 차트, 권한 분리(슈퍼관리자 등) |
+| 푸시 | Expo Push / FCM 발송, 토큰 등록, 알림함, **EAS Build APK/IPA 배포** | 자동 스케줄러(미보고 자동 푸시), 인앱 채팅 |
 
 ---
 
@@ -87,110 +112,141 @@
 
 ## 4. 디렉터리 구조
 
-전체 파일 70개의 완전한 트리 (`__init__.py` 패키지 마커 포함).
+v0.4 기준 전체 소스 파일의 완전한 트리. 빌드 산출물(`mobile/dist/`), 런타임 자격증명(`google-services.json`, Firebase 서비스 계정 JSON), 운영 비밀(`.env.production`), npm/next 가 생성하는 lockfile·`next-env.d.ts` 는 별도이며 `.gitignore` 처리됨. 사용자 제공 xlsx 2개도 별도 보관.
 
 ```
 yosan/
-├── README.md
-├── REPORT.md
-├── .gitignore
+├── README.md                            # 모듈 구성 + 빠른 시작 + 문서 인덱스
+├── REPORT.md                            # 본 문서
+├── DEPLOYMENT.md                        # 운영 배포 가이드 (Caddy + Let's Encrypt) — v0.4
+├── DEVELOPMENT_SETUP.md                 # 새 디바이스 부트스트랩 가이드 — v0.4
+├── .gitignore                           # .env.production, google-services.json, *firebase-adminsdk* 등 제외
 │
-├── backend/                            # FastAPI + PostgreSQL  ── 35 files
+├── backend/                            # FastAPI + PostgreSQL  ── 47 files (v0.4)
 │   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── requirements.txt
-│   ├── .env.example
+│   ├── docker-compose.yml               # 개발 (포트 26610 노출, uvicorn --reload)
+│   ├── docker-compose.prod.yml          # 운영 (Caddy + 워커4, 백엔드 포트 비노출) — v0.4
+│   ├── Caddyfile                        # 리버스 프록시 + Let's Encrypt — v0.4
+│   ├── requirements.txt                 # FastAPI / SQLAlchemy / Pydantic / passlib[bcrypt] / httpx
+│   ├── .env.example                     # 개발용 환경변수 템플릿
+│   ├── .env.production.example          # 운영용 환경변수 템플릿 — v0.4
 │   ├── README.md
 │   └── app/
 │       ├── __init__.py
-│       ├── main.py                     # FastAPI 엔트리, CORS, 라우터 등록, startup 훅
+│       ├── main.py                      # FastAPI 엔트리, CORS, 라우터 등록, startup 훅
 │       ├── core/
 │       │   ├── __init__.py
-│       │   ├── config.py               # pydantic-settings 기반 Settings + lru_cache
-│       │   └── security.py             # hash_password / verify / JWT encode·decode
+│       │   ├── config.py                # pydantic-settings 기반 Settings + lru_cache
+│       │   └── security.py              # hash_password / verify / JWT encode·decode
+│       ├── data/                        # 정적 데이터 (DB로 이전 가능)
+│       │   ├── __init__.py
+│       │   └── survey_templates.py      # B군/C군 FFQ + MARS-5 문항·선택지 상수
 │       ├── db/
 │       │   ├── __init__.py
-│       │   ├── session.py              # SQLAlchemy Engine·SessionLocal·Base + get_db()
-│       │   └── init_db.py              # create_all() + 시드 관리자 자동 생성
-│       ├── models/                     # SQLAlchemy 2.x ORM (Mapped 타이핑)
+│       │   ├── session.py               # SQLAlchemy Engine·SessionLocal·Base + get_db()
+│       │   └── init_db.py               # create_all() + 시드 관리자 자동 생성
+│       ├── models/                      # SQLAlchemy 2.x ORM (Mapped 타이핑)
 │       │   ├── __init__.py
-│       │   ├── user.py                 # User + UserRole enum
-│       │   ├── patient.py              # PatientProfile (User 1:1)
-│       │   ├── report.py               # DailyReport + MealEntry + MealType enum
-│       │   ├── device.py               # DeviceToken (token unique)
-│       │   └── notification.py         # Notification (sender / recipient / delivered / read)
-│       ├── schemas/                    # Pydantic I/O DTO
+│       │   ├── user.py                  # User + UserRole enum + is_active
+│       │   ├── patient.py               # PatientProfile (+ survey_group: 'B'|'C'|None)
+│       │   ├── report.py                # DailyReport + MealEntry + MealType enum (보존)
+│       │   ├── device.py                # DeviceToken (token unique)
+│       │   ├── notification.py
+│       │   ├── survey.py                # SurveySubmission + SurveyAnswer (1:N)
+│       │   ├── mileage.py               # MileageCompletion (+ TOTAL_MONTHS / 금액 상수 / 헬퍼)
+│       │   └── password_reset.py        # PasswordResetRequest (user_id unique) — v0.4
+│       ├── schemas/                     # Pydantic I/O DTO
 │       │   ├── __init__.py
-│       │   ├── auth.py                 # LoginRequest / TokenResponse
-│       │   ├── user.py                 # PatientCreate / PatientOut / PatientListItem 등
-│       │   ├── report.py               # DailyReportIn/Out + MealEntryIn/Out
-│       │   └── notification.py         # NotificationSendIn / DeviceTokenIn 등
+│       │   ├── auth.py                  # LoginRequest / TokenResponse / PatientRegisterIn /
+│       │   │                            #   ApproveIn / PasswordResetRequestIn / Out — v0.4 확장
+│       │   ├── user.py                  # PatientCreate / PatientOut / PatientListItem 등
+│       │   ├── report.py                # DailyReportIn/Out + MealEntryIn/Out
+│       │   ├── notification.py          # NotificationSendIn / DeviceTokenIn 등
+│       │   ├── survey.py                # SurveyTemplateOut / SurveySubmitIn / SurveySubmissionOut
+│       │   └── mileage.py               # MileageSummary / MileageMonth / MileageToggleIn
 │       ├── services/
 │       │   ├── __init__.py
-│       │   └── push.py                 # Firebase Admin lazy-init + send_each / 스텁 폴백
+│       │   └── push.py                  # Expo Push HTTP API 호출 (v0.4 재작성)
 │       └── api/
 │           ├── __init__.py
-│           ├── deps.py                 # oauth2_scheme + get_current_user / require_admin / require_patient
+│           ├── deps.py                  # oauth2_scheme + get_current_user / require_admin / require_patient
 │           └── v1/
 │               ├── __init__.py
-│               ├── router.py           # /api/v1 prefix + 4개 엔드포인트 include
+│               ├── router.py            # /api/v1 prefix + 6개 라우터 include
 │               └── endpoints/
 │                   ├── __init__.py
-│                   ├── auth.py         # POST /auth/login
-│                   ├── patients.py     # 환자 CRUD + 미보고 식별 LEFT JOIN
-│                   ├── reports.py      # upsert (POST), 본인/특정환자 이력 (GET)
-│                   └── notifications.py # device-token / send / me / read
+│                   ├── auth.py          # login / register / password-reset/* — v0.4 확장
+│                   ├── patients.py      # 환자 CRUD + 미보고 식별 + pending/approve/delete — v0.4 확장
+│                   ├── reports.py       # upsert (POST), 본인/특정환자 이력 (GET) — 백엔드 보존
+│                   ├── notifications.py # device-token / send / me / read
+│                   ├── surveys.py       # 그룹별 template / submit / me / patient/{id} / groups
+│                   └── mileage.py       # me / patient/{id} / patient/{id}/toggle / config
 │
-├── web-admin/                          # Next.js 14 (App Router)  ── 17 files
+├── web-admin/                          # Next.js 14 (App Router)  ── 21 files (v0.4)
 │   ├── package.json
-│   ├── next.config.mjs                 # NEXT_PUBLIC_API_BASE 주입
-│   ├── tailwind.config.ts              # brand 컬러 팔레트 확장
+│   ├── next.config.mjs                  # NEXT_PUBLIC_API_BASE 주입
+│   ├── tailwind.config.ts               # brand 컬러 팔레트 확장
 │   ├── postcss.config.js
 │   ├── tsconfig.json
-│   ├── .env.local.example
+│   ├── .env.local.example               # 개발용
+│   ├── .env.production.example          # 운영용 (Vercel 등 호스팅) — v0.4
 │   ├── README.md
 │   ├── lib/
-│   │   └── api.ts                      # fetch 래퍼 + localStorage 세션 + 도메인 타입
+│   │   └── api.ts                       # fetch 래퍼 + localStorage 세션 + 도메인 타입
 │   ├── components/
-│   │   └── AuthGuard.tsx               # admin 토큰 검증 + 헤더/네비/로그아웃 UI
+│   │   ├── AuthGuard.tsx                # admin 토큰 검증 + 4개 메뉴 네비 — v0.4 확장
+│   │   │                                #   (환자 관리 / 가입 요청 / 비밀번호 초기화 / 알림 발송)
+│   │   └── MileagePanel.tsx             # 24칸 격자 + 토글 호출 + 진행률 헤더 (금액 표시 제거)
 │   └── app/
-│       ├── layout.tsx                  # 한글 폰트 폴백 (Noto Sans KR)
-│       ├── page.tsx                    # 로그인 여부에 따라 /login or /patients 리다이렉트
+│       ├── layout.tsx                   # 한글 폰트 폴백 (Noto Sans KR)
+│       ├── page.tsx                     # 로그인 여부에 따라 분기
 │       ├── globals.css
 │       ├── login/
-│       │   └── page.tsx                # 관리자 로그인 (admin 외 차단)
+│       │   └── page.tsx                 # 관리자 로그인 (admin 외 차단)
 │       ├── patients/
-│       │   ├── page.tsx                # 목록 + 미보고 강조 + 필터
-│       │   ├── new/
-│       │   │   └── page.tsx            # 신규 환자 등록 (계정 + 의료 프로필)
-│       │   └── [id]/
-│       │       └── page.tsx            # 환자 상세 + 보고 이력 (식단·통증·발작 시각화)
+│       │   ├── page.tsx                 # 목록 + 미보고 강조 + 필터
+│       │   ├── new/page.tsx             # 신규 환자 등록 (관리자 직접 생성)
+│       │   └── [id]/page.tsx            # 환자 상세 + 설문그룹 인라인 편집 + 마일리지 토글
+│       ├── pending/
+│       │   └── page.tsx                 # 가입 요청 검토 + 설문그룹 지정 + 승인/거절 — v0.4
+│       ├── password-resets/
+│       │   └── page.tsx                 # 비밀번호 초기화 요청 검토 + 승인/거절 — v0.4
 │       └── notifications/
-│           └── page.tsx                # 다중 수신자 선택 + "오늘 미보고 전체" 원클릭
+│           └── page.tsx                 # 다중 수신자 선택 + "오늘 미보고 전체" 원클릭
 │
-└── mobile/                             # React Native + Expo Router  ── 15 files
+└── mobile/                             # React Native + Expo Router  ── 19 files (v0.4)
     ├── package.json
-    ├── app.json                        # Expo 설정 + extra.apiBase
-    ├── babel.config.js                 # expo-router/babel 플러그인
+    ├── app.json                         # Expo SDK 54 / extra.apiBase / FCM google-services.json 경로
+    ├── babel.config.js
     ├── tsconfig.json
+    ├── eas.json                         # EAS Build 프로파일: development / preview(APK) / production(AAB)
     ├── README.md
+    ├── BUILD.md                         # APK 빌드 + 설치 + OTA 업데이트 가이드
     ├── lib/
-    │   ├── api.ts                      # fetch 래퍼 + AsyncStorage 세션 + 도메인 타입
-    │   └── push.ts                     # 권한 요청 + Expo Push Token 발급 + 백엔드 등록
+    │   ├── api.ts                       # fetch 래퍼 + AsyncStorage 세션 + 도메인 타입
+    │   └── push.ts                      # Expo Go 환경 자동 우회 + 권한 요청 + 토큰 등록
     └── app/
-        ├── _layout.tsx                 # SafeAreaProvider + Stack
-        ├── index.tsx                   # 토큰 보유 여부에 따라 분기
+        ├── _layout.tsx                  # SafeAreaProvider + Stack
+        ├── index.tsx                    # 로그인 상태에 따라 분기 (→ /(app)/mileage 또는 /(auth)/login)
         ├── (auth)/
-        │   └── login.tsx               # 환자 로그인 (patient 외 차단)
+        │   ├── login.tsx                # 환자 로그인 + "가입 신청" + "비밀번호 초기화" 링크
+        │   ├── register.tsx             # 가입 신청 (이메일/비밀번호/이름/의료 정보) — v0.4
+        │   └── reset-password.tsx       # 비밀번호 초기화 신청 — v0.4
         └── (app)/
-            ├── _layout.tsx             # Tabs + 마운트 시 푸시 권한/토큰 등록
-            ├── home.tsx                # 오늘의 식단/건강 보고 (upsert)
-            ├── history.tsx             # 보고 이력 (pull-to-refresh)
-            ├── notifications.tsx       # 알림함 + 탭 시 read 처리
-            └── profile.tsx             # 의료 프로필 + 로그아웃
+            ├── _layout.tsx              # Tabs 4개 (마일리지/설문/알림/내정보) + 푸시 권한/토큰 등록
+            ├── mileage.tsx              # 1 사이클씩 격자 + 현재 미션 강조 + 이지선다 — v0.4 재설계
+            │                            #   (home.tsx, history.tsx 는 v0.4 에서 삭제)
+            ├── survey.tsx               # B/C군 설문 + 월 1회 잠금 + 제출 완료 패널 — v0.4 재작성
+            ├── notifications.tsx        # 알림함 + 탭 시 read 처리
+            └── profile.tsx              # 의료 프로필 + 로그아웃
 ```
 
-**구성 요약**: 백엔드 35 · 웹 관리자 17 · 모바일 15 · 루트 3 = **총 70개 파일**.
+**구성 요약** (v0.4): 백엔드 47 · 웹 관리자 21 · 모바일 19 · 루트 5 = **총 92개 파일** (xlsx 원본 2개 별도 보관).
+
+**v0.3 → v0.4 변동**:
+- **추가**: 루트 2 (DEPLOYMENT, DEVELOPMENT_SETUP), 백엔드 4 (.env.production.example, Caddyfile, docker-compose.prod.yml, models/password_reset.py), 웹 3 (.env.production.example, app/pending, app/password-resets), 모바일 2 (register, reset-password) = +11
+- **삭제**: 모바일 2 (app/(app)/home.tsx, app/(app)/history.tsx) = -2
+- **순 증가**: +9 (83 → 92)
 
 ---
 
@@ -199,12 +255,21 @@ yosan/
 ### 5.1 ER 다이어그램
 ```
 ┌──────────┐ 1   1 ┌──────────────────┐
-│  users   ├───────┤ patient_profiles │
+│  users   ├───────┤ patient_profiles │  (+ survey_group: 'B' | 'C' | NULL)
 │ (admin/  │       └──────────────────┘
 │  patient)│
 │          │ 1   N ┌──────────────────┐ 1   N ┌──────────────┐
 │          ├───────┤  daily_reports   ├───────┤ meal_entries │
 │          │       └──────────────────┘       └──────────────┘
+│          │ 1   N ┌────────────────────┐ 1  N ┌────────────────┐
+│          ├───────┤ survey_submissions ├──────┤ survey_answers │
+│          │       └────────────────────┘      └────────────────┘
+│          │ 1   N ┌──────────────────────┐
+│          ├───────┤ mileage_completions  │  (patient_id + month_index unique)
+│          │       └──────────────────────┘
+│          │ 1   1 ┌──────────────────────────┐
+│          ├───────┤ password_reset_requests  │  (user_id unique — 사용자당 1건)
+│          │       └──────────────────────────┘
 │          │ 1   N ┌──────────────────┐
 │          ├───────┤  device_tokens   │
 │          │       └──────────────────┘
@@ -239,6 +304,7 @@ yosan/
 | baseline_uric_acid | float |
 | medications | text |
 | notes | text |
+| **survey_group** | **varchar(1)** — `'B'` (저요산식단) / `'C'` (DASH식단) / `NULL`(미지정) |
 | created_at / updated_at | timestamptz |
 
 #### `daily_reports`
@@ -289,9 +355,64 @@ yosan/
 | read | bool |
 | created_at | timestamptz |
 
-### 5.3 라이프사이클
+#### `survey_submissions`
+설문지 1회 제출에 대응. 환자는 동일 날짜에 여러 번 제출할 수 있다 (덮어쓰기 정책 미적용, 시계열 분석 우선).
+| 컬럼 | 타입 |
+|---|---|
+| patient_id (FK→users, CASCADE) | int, index |
+| survey_group | varchar(1) (`B` / `C`) |
+| check_date | date, index |
+| notes | text |
+| submitted_at | timestamptz |
+
+#### `survey_answers` (N:1 with survey_submissions)
+| 컬럼 | 타입 |
+|---|---|
+| submission_id (FK→survey_submissions, CASCADE) | int, index |
+| question_code | varchar(40) — `B_FOOD_1..11`, `C_FOOD_1..11`, `MARS_1..5` |
+| choice_index | int — 0-based |
+| choice_label | varchar(200) — 사후 텍스트 분석을 위해 라벨 원문도 동시 저장 |
+
+#### `mileage_completions`
+환자가 24개월 마일리지 프로그램의 특정 월차를 완료했을 때 1 row.
+| 컬럼 | 타입 | 비고 |
+|---|---|---|
+| patient_id (FK→users, CASCADE) | int | index |
+| month_index | int | 1..24 |
+| note | varchar(200) | 관리자 메모 (옵션) |
+| completed_at | timestamptz | server_default now() |
+| **UNIQUE** | (patient_id, month_index) | `uq_mileage_patient_month` |
+
+**파생 규칙**:
+- `is_hospital_visit(m) := m % 6 == 0` → 6, 12, 18, 24월차가 큰 동그라미(병원 방문)
+- `amount(m) := 5000 if hospital else 3000`
+- 사이클 = 6개월. 한 사이클 모두 채우면 20,000원, 전체 4 사이클 = 80,000원
+
+이 규칙들은 `backend/app/models/mileage.py` 상단에 상수와 헬퍼로 정의되어 있어 클라이언트가 별도로 가져갈 필요 없이 백엔드가 응답에 amount/is_hospital_visit 을 함께 내려 준다.
+
+> **v0.4 모바일 UI 정책**: 환자에게 금액(원) 표시는 노출하지 않고 "월차 / 사이클" 단위 진행률만 표시. 동기 부여를 위한 적립 표시는 관리자 웹에서만 유지 (`MileagePanel` 의 누적 금액 헤더).
+
+#### `password_reset_requests` (v0.4 신규)
+환자가 신청한 비밀번호 초기화 대기 항목. 관리자 승인 시 `users.hashed_password` 를 덮어쓰고 row 삭제. 거절 시 row 만 삭제.
+| 컬럼 | 타입 | 비고 |
+|---|---|---|
+| id | int PK | |
+| user_id (FK→users, CASCADE) | int | index |
+| new_hashed_password | varchar(255) | 환자가 입력한 새 비밀번호의 bcrypt 해시. 평문은 어디에도 보관되지 않음 |
+| note | text | 신청 사유 (선택) |
+| requested_at | timestamptz | server_default now() |
+| **UNIQUE** | (user_id) | `uq_password_reset_user` — 사용자당 1건만 유지, 재신청 시 백엔드가 기존 row 삭제 후 새로 insert |
+
+**라이프사이클**: 신청 → 대기 → 승인(`POST .../approve` → `user.hashed_password` 갱신 후 row 삭제) 또는 거절(`DELETE .../{id}` → row 삭제). 별도 audit 테이블은 없음 (필요 시 향후 추가).
+
+### 5.3 설문 템플릿 데이터
+설문 문항 자체는 정적이므로 DB가 아닌 `backend/app/data/survey_templates.py` 의 Python 상수로 보관. 환자에게 노출 시 `GET /api/v1/surveys/template`이 환자의 `survey_group` 에 따라 알맞은 11(식이) + 5(MARS-5) 문항을 한 번에 반환한다. 문항이 자주 바뀌는 운영 환경이라면 `survey_templates` / `survey_questions` / `survey_question_options` 테이블로 이전하는 것이 향후 과제.
+
+### 5.4 라이프사이클
 - **부팅 시**: `init_db.init_db()` → `Base.metadata.create_all()` → 시드 관리자 1명 자동 생성.
-- **마이그레이션**: MVP에서는 단순화를 위해 `create_all` 사용. 운영 진입 시 Alembic 도입 권장 (이미 `alembic/versions/` 디렉터리만 선반영).
+- **마이그레이션**: MVP에서는 단순화를 위해 `create_all` 사용. **단, `create_all`은 기존 테이블의 컬럼 추가/삭제를 반영하지 않는다.** 이번까지의 변경(v0.2: `patient_profiles.survey_group` / `survey_submissions` / `survey_answers`, v0.3: `mileage_completions`, **v0.4: `password_reset_requests` (신규 테이블이므로 `create_all` 이 자동 생성. 기존 DB 보존)**)을 기존 DB에 적용하려면:
+  - 개발: `docker compose down -v` 후 재기동 (볼륨 초기화)
+  - 운영: Alembic 도입 또는 수동 `ALTER TABLE`. 운영 진입 전 Alembic 도입을 강력 권장.
 
 ---
 
@@ -351,21 +472,87 @@ def list_patients(_: User = Depends(require_admin), db: Session = Depends(get_db
 | GET | `/api/v1/reports/me/today` | patient | 오늘 보고 단건 (없으면 `null`) |
 | GET | `/api/v1/reports/patient/{id}` | admin | 특정 환자의 보고 이력 |
 
-### 7.4 알림
+### 7.4 인증 — 자가 가입 / 관리자 승인 (v0.4 추가)
 | 메서드 | 경로 | 권한 | 설명 |
 |---|---|---|---|
-| POST | `/api/v1/notifications/device-token` | 로그인 | FCM/Expo 토큰 등록 (idempotent) |
+| POST | `/api/v1/auth/register` | 공개 | 환자 자가 가입. 이메일·비밀번호·이름·의료 정보 입력. `is_active=False` 로 저장 |
+| GET | `/api/v1/patients/pending` | admin | 미승인 가입자 목록 (의료 프로필 포함) |
+| POST | `/api/v1/patients/{id}/approve` | admin | `survey_group(B/C)` 지정 + `is_active=True` |
+| DELETE | `/api/v1/patients/{id}` | admin | 환자 계정 + 연관 데이터(cascade) 삭제 (가입 거절 또는 탈퇴) |
+
+미승인 계정으로 로그인 시도 시 백엔드는 `403 — "관리자 승인 대기 중인 계정입니다."` 응답.
+
+### 7.4.1 비밀번호 초기화 — 환자 신청 / 관리자 승인 (v0.4 추가)
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| POST | `/api/v1/auth/password-reset/request` | 공개 | 환자가 이메일 + 새 비밀번호 + 사유(선택) 로 초기화 신청. 새 비번은 즉시 해시 후 보관 |
+| GET | `/api/v1/auth/password-reset/pending` | admin | 대기 중인 초기화 신청 목록 (환자 이름·이메일·사유 포함) |
+| POST | `/api/v1/auth/password-reset/{id}/approve` | admin | 승인. `user.hashed_password` 를 신청된 새 해시로 덮어쓰고 요청 row 삭제 |
+| DELETE | `/api/v1/auth/password-reset/{id}` | admin | 거절. 요청 row 만 삭제, 비번 그대로 |
+
+데이터 모델: `password_reset_requests` (`UniqueConstraint(user_id)` 로 사용자당 1건만 유지. 재신청 시 자동 교체)
+
+흐름:
+1. 환자가 모바일 로그인 화면 → "비밀번호 초기화" → 이메일 + 새 비밀번호 입력 → 신청
+2. 신청 중 환자는 **기존 비밀번호로 계속 로그인 가능** (승인 전엔 `user.hashed_password` 미변경)
+3. 관리자가 본인 확인 (전화/SMS 등) 후 웹의 "비밀번호 초기화" 메뉴에서 승인 → 즉시 새 비밀번호로 전환
+4. 관리자가 거절하면 신청 row 만 삭제, 환자는 알림 없음 (재신청 가능)
+
+**보안 노트:**
+- 환자가 보낸 새 비밀번호는 즉시 bcrypt 로 해시. 평문은 어디에도 보관되지 않음
+- 관리자는 평문 비밀번호를 알 수 없음 (Y-DB도, 화면도)
+- 사용자당 1 row 제약으로 신청 폭주 방지
+- 운영에서는 승인 전 본인 확인이 필수 (관리자 UI 가 안내문 표시). 향후 OTP/이메일 인증 추가 검토
+
+### 7.5 알림 / 푸시
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| POST | `/api/v1/notifications/device-token` | 로그인 | Expo Push Token 등록 (idempotent — 동일 token 은 user_id 만 갱신) |
 | POST | `/api/v1/notifications/send` | admin | 다수 환자에게 푸시 + 알림함 적재 |
 | GET | `/api/v1/notifications/me` | 로그인 | 본인 알림함 |
 | POST | `/api/v1/notifications/{id}/read` | 로그인 | 알림 읽음 처리 |
 
-### 7.5 OpenAPI
-- 서버 부팅 후 `http://localhost:8000/docs` (Swagger UI), `/redoc` (ReDoc).
+**푸시 송신 경로 (v0.4 재작성):**
+1. 백엔드가 `device_tokens` 에서 수신자의 Expo Push Token 조회
+2. `https://exp.host/--/api/v2/push/send` 에 POST (token list, title, body, sound, priority, data)
+3. Expo Push Service 가 Android FCM 으로 라우팅 (EAS Credentials 에 등록된 FCM V1 서비스 계정 키 사용)
+4. FCM → 폰 OS → 잠금화면/알림센터 표시
+
+v0.3 이전엔 백엔드가 Firebase Admin SDK 로 직접 FCM 호출을 시도했지만, Expo Push Token 은 FCM 토큰이 아니므로 호출이 실패. v0.4 에서 정식 흐름으로 교체.
+
+### 7.5 설문
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| GET | `/api/v1/surveys/template` | patient | 본인의 `survey_group` 에 맞는 템플릿 (B 또는 C) 조회 |
+| GET | `/api/v1/surveys/template/{group}` | admin | 임의 그룹의 템플릿 조회 (관리자 확인용) |
+| GET | `/api/v1/surveys/groups` | admin | 사용 가능한 그룹 목록 (`["B","C"]`) |
+| POST | `/api/v1/surveys` | patient | 설문 제출 — 누락/허위 질문 코드 검증 후 저장 |
+| GET | `/api/v1/surveys/me` | patient | 본인 제출 이력 |
+| GET | `/api/v1/surveys/patient/{id}` | admin | 특정 환자의 제출 이력 |
+
+**검증 규칙**
+- 제출 시 환자에게 배정된 그룹의 **모든 질문 코드가 응답에 포함되어야 함** (누락 시 400)
+- 응답 코드가 해당 그룹에 속하지 않으면 400
+- `choice_index` 가 옵션 배열 범위를 벗어나면 400
+- 응답 저장 시 코드별 옵션 라벨을 함께 적재 → 향후 문항/옵션 텍스트가 변경되어도 과거 응답의 의미가 유지됨
+
+### 7.6 OpenAPI
+- 서버 부팅 후 `http://localhost:26610/docs` (Swagger UI), `/redoc` (ReDoc).
 - 모든 요청/응답이 Pydantic 모델 기반이므로 스키마가 자동 정합.
 
-### 7.6 에러 응답 규약
+### 7.6 마일리지
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| GET | `/api/v1/mileage/me` | patient | 본인의 24개월 진행 상태 + 누적/최대 금액 + 완료 사이클 수 |
+| GET | `/api/v1/mileage/patient/{id}` | admin | 특정 환자의 마일리지 요약 |
+| POST | `/api/v1/mileage/patient/{id}/toggle` | admin | `{month_index, completed, note?}` 로 특정 월차 토글, 갱신된 요약 반환 |
+| GET | `/api/v1/mileage/config` | 공개 | 클라이언트 격자 렌더용 상수 (`total_months=24`, `cycle_length=6`, `small_amount=3000`, `large_amount=5000`) |
+
+응답의 `months[]` 항목은 미완료 월도 포함하므로 클라이언트는 항상 24칸 격자를 안정적으로 렌더할 수 있다.
+
+### 7.7 에러 응답 규약
 - FastAPI 기본 `{"detail": "..."}` 사용.
-- 한국어 메시지는 사용자 친화적 표현으로 통일 (예: "이미 등록된 이메일입니다.", "환자만 보고할 수 있습니다.").
+- 한국어 메시지는 사용자 친화적 표현으로 통일 (예: "이미 등록된 이메일입니다.", "환자만 보고할 수 있습니다.", "설문 그룹(B/C)이 지정되지 않았습니다. 관리자에게 문의해 주세요.").
 
 ---
 
@@ -409,12 +596,14 @@ app/
 ├── (auth)/login.tsx
 └── (app)/
     ├── _layout.tsx          # 탭 (+ 푸시 권한 요청)
+    ├── mileage.tsx          # 24개월 마일리지 (랜딩 탭)
     ├── home.tsx             # 오늘 보고
+    ├── survey.tsx           # B/C군 설문 제출
     ├── history.tsx          # 보고 이력
     ├── notifications.tsx    # 알림함
     └── profile.tsx          # 내 정보 / 로그아웃
 ```
-`(auth)` / `(app)` 라우트 그룹 패턴으로 인증 영역과 일반 영역을 자연스럽게 분리.
+`(auth)` / `(app)` 라우트 그룹 패턴으로 인증 영역과 일반 영역을 자연스럽게 분리. 앱 이름은 `expo.name = "통풍식이 마일리지"` 로 마일리지 기능이 앱의 핵심 정체성임을 표현한다.
 
 ### 9.2 일일 보고 UX 설계
 환자가 부담을 느끼지 않도록 다음을 채택:
@@ -423,20 +612,89 @@ app/
 - **식단은 텍스트 + 퓨린 함량 추정**: 자유 텍스트로 부담 ↓. 향후 푸린 DB와 매칭하여 자동 추정 가능.
 - **통풍 발작 / 약 복용 토글**: Switch UI로 한 번 터치 입력.
 
-### 9.3 푸시 알림
+### 9.3 마일리지 화면 흐름 (v0.4 재설계)
+
+**보고 주기는 "월"(monthly) 단위.** 환자는 한 달에 한 번 설문 작성 또는 전화 보고를 수행한다. 각 동그라미 = 1개월차.
+
+1. 환자가 앱을 열면 가장 먼저 만나는 탭이 "마일리지" (참여 동기 강화 의도)
+2. 상단 카드: 완료 월수 / 전체 24월차 / 완료 사이클 수 (금액 표시는 제거)
+3. 본문: **한 번에 한 사이클만 표시** (이전엔 4 사이클 동시 표시). `← N번째 사이클 →` 네비게이션
+4. 앱 진입 시 **현재 진행할 사이클 자동 선택** (첫 미완료 월차가 포함된 사이클)
+5. 채워진 동그라미: 파란색(소) / 주황색(대) + ✓
+6. **현재 진행할 월차**: 초록 점선 테두리 + 연두 배경 + ▶ 아이콘. 탭 가능
+7. 현재 월차 탭 → Alert (제목: **"이번 달 미션"**, 본문: "한 달에 한 번 진행해요. 어떻게 보고하시겠어요?"): 
+   - **"전화 연결"** → `Linking.openURL("tel:010-XXXX-XXXX")` (관리자 전화번호. 환자에게 상시 표시되는 placeholder. 운영 시 OTA 로 실 번호로 교체)
+   - **"설문 작성"** → 설문 탭으로 이동 (`router.push("/(app)/survey")`)
+   - "취소"
+8. **환자 화면에서는 마일리지 토글 불가** — 적립은 관리자 권한 (관리자 웹의 `MileagePanel` 에서 토글)
+9. 하단 안내: "▶ 표시된 이번 달 미션을 눌러 시작하세요 / 미션은 매월 1회만 진행됩니다."
+
+### 9.3.1 설문 화면 — 월 1회 제출 잠금 (v0.4)
+설문도 동일하게 **월 1회**:
+- 클라이언트가 `/api/v1/surveys/me` 응답에서 `check_date` 의 `YYYY-MM` 이 현재 달과 일치하는 제출을 찾는다
+- **있으면**: 작성 폼 숨김 → "✅ 이번 달 설문 제출 완료" 패널 + 제출일 + "다음 작성 가능: YYYY년 N월" 안내 + 제출한 응답 요약 표시
+- **없으면**: 평소처럼 작성 폼. 배너에 "한 달에 1회 작성" 명시. 제출 버튼 라벨도 "이번 달 설문 제출"
+- 백엔드는 다중 제출을 막지 않음 (UI 잠금만). 운영 중 잘못 제출한 환자가 있으면 관리자가 DB 에서 해당 row 삭제하면 다시 작성 가능 — 향후 관리자 웹에 "월 설문 삭제" 기능 추가 검토
+
+### 9.4 탭 구성 (v0.4 단순화)
+이전 6개 탭(`마일리지 / 보고 / 설문 / 이력 / 알림 / 내 정보`) 에서 4개로 축소:
+- `마일리지` (랜딩, 진행할 미션 강조)
+- `설문` (B/C군 그룹별 FFQ + MARS-5)
+- `알림` (관리자 푸시 알림함)
+- `내 정보` (의료 프로필 + 로그아웃)
+
+`보고` (일일 식이·건강 자유 입력) 와 `이력` (보고 기록) 탭은 v0.4 에서 제거. 환자가 보고할 내용은 모두 설문 탭의 정형화된 폼으로 통일. 향후 자유형 보고 재도입 시 별도 탭 또는 마일리지 액션 시트의 세 번째 옵션으로 추가 가능. 백엔드의 `daily_reports / meal_entries` 모델은 그대로 보존 (관리자 웹 환자 상세에서 과거 데이터 열람 가능).
+
+### 9.4 설문 화면 흐름
+1. 환자가 "설문" 탭 진입 → `GET /api/v1/surveys/template` 호출. 환자의 `survey_group` 에 따라 B 또는 C 템플릿이 자동 반환됨. 미배정 시 안내 화면.
+2. 각 문항은 라디오 형태로 노출 (단일 선택). 선택지 개수가 문항마다 다르므로(3~5) 동적 렌더링.
+3. 모든 문항 응답 후 "설문 제출" → `POST /api/v1/surveys` 로 `{check_date, notes, answers[]}` 전송. 누락이 있으면 클라이언트가 사전 차단.
+4. 제출 성공 후 최근 5건 제출 이력을 같은 화면 하단에 노출.
+
+### 9.5 푸시 알림
 1. 앱이 `(app)` 진입 시 `registerForPushNotificationsAsync` 호출
-2. iOS/Android 권한 요청 → 거부 시 알림 미수신
-3. Expo Push Token 발급 → 백엔드 `/api/v1/notifications/device-token`에 등록(중복 token은 user_id만 갱신)
-4. 관리자가 발송하면 Expo Push → 디바이스에 도착. 앱은 `Notifications.addNotificationReceivedListener`로 인앱 처리 가능.
+2. **Expo Go 환경 자동 우회**: `Constants.appOwnership === "expo"` 인 경우 토큰 발급을 건너뛰고 콘솔 경고 (Expo Go SDK 53+ 에서 원격 푸시 미지원)
+3. 실 빌드 환경(EAS Build로 만든 APK/IPA)에서는 권한 요청 → Expo Push Token 발급 → 백엔드 `/api/v1/notifications/device-token` 등록
+4. 관리자가 발송하면 Expo Push / FCM → 디바이스 잠금화면/알림센터 도착. 인앱 수신은 `Notifications.addNotificationReceivedListener` 로 처리 가능
 5. 알림함 화면에서 미열람 알림 클릭 시 `/{id}/read` 호출
 
-### 9.4 네트워크 베이스 URL
+### 9.6 네트워크 베이스 URL
 `mobile/app.json`의 `expo.extra.apiBase`로 관리. 디바이스별 호스트 차이를 README 가이드에 명시:
 | 환경 | apiBase |
 |---|---|
-| Android 에뮬레이터 | `http://10.0.2.2:8000` |
-| iOS 시뮬레이터 | `http://localhost:8000` |
-| 실제 디바이스(LAN) | `http://<PC LAN IP>:8000` |
+| Android 에뮬레이터 | `http://10.0.2.2:26610` |
+| iOS 시뮬레이터 | `http://localhost:26610` |
+| 공인 IP (포트포워딩) | `http://<공인 IP>:26610` (예: `http://210.107.197.58:26610`) |
+| 실제 디바이스(LAN) | `http://<PC LAN IP>:26610` |
+
+---
+
+### 9.7 배포 모델 (EAS Build + FCM V1)
+
+**Expo Go (SDK 53+)는 원격 푸시 알림을 제거**했기 때문에, 운영 단계에서는 환자 디바이스에 직접 설치 가능한 빌드가 필요하다. 이를 위해 EAS Build를 정식 채택했다.
+
+| 프로파일 | Android | iOS | 용도 |
+|---|---|---|---|
+| `development` | APK + dev client | simulator | 개발자가 라이브 코드 변경을 즉시 반영 |
+| `preview` | **APK** (internal distribution) | IPA (ad-hoc / 내부 TestFlight) | **사내 환자 시험 배포 — 카카오톡/USB로 APK 직접 설치** |
+| `production` | AAB | IPA | Play Store / App Store 정식 배포 |
+
+- 빌드 명령: `eas build --platform android --profile preview`
+- 빌드는 EAS 클라우드에서 10~20분 소요, 결과는 다운로드 링크로 제공
+- JS 코드 변경만 있을 경우 `eas update` 로 OTA 패치 (재빌드 불필요)
+- 자세한 절차/트러블슈팅은 `mobile/BUILD.md`
+
+**v0.4 추가 — FCM V1 자격증명 등록 (필수):**
+1. Firebase 콘솔에서 프로젝트 생성 → Android 앱 등록 (`com.yosan.monitor`)
+2. `google-services.json` 다운로드 → `mobile/` 폴더 (커밋 금지, `.gitignore` 처리됨)
+3. `app.json` 의 `android.googleServicesFile = "./google-services.json"` 설정
+4. Firebase 설정 → 서비스 계정 → 비공개 키 JSON 다운로드
+5. `eas credentials` → Android → preview → **Google Service Account** → **FCM V1** → 위 JSON 업로드
+6. APK 재빌드 시점에 EAS 가 자동으로 FCM 자격증명을 빌드에 포함
+
+이 절차를 완료하지 않으면 Android standalone APK 에서 푸시 토큰 발급 자체가 실패. EAS 가 자격증명을 클라우드에 보관하므로, 동일 EAS 프로젝트에서는 한 번만 등록.
+
+**iOS 제약**: Apple Developer Program ($99/년) 멤버십이 필수. 없을 경우 iOS 시뮬레이터 빌드까지만 가능. iOS 푸시는 APNs 자격증명을 별도 등록.
 
 ---
 
@@ -488,14 +746,48 @@ cd mobile; npm install; npx expo start
 | `FIREBASE_CREDENTIALS_PATH` | FCM 서비스 계정 JSON | (미설정 시 스텁 모드) |
 | `SEED_ADMIN_EMAIL/PASSWORD` | 시드 관리자 | `admin@yosan.local / admin1234` |
 
-### 11.3 운영 체크리스트
-- [ ] `SECRET_KEY`를 충분히 긴 무작위 문자열로 교체
+### 11.3 운영 배포 (Caddy + Let's Encrypt, v0.4)
+개발 단계에서 사용하던 **Cloudflare quick tunnel** (임시 URL · cloudflared 켠 PC 의존) 을 종료하고 정식 운영 인프라로 전환.
+
+**핵심 파일:**
+- `backend/docker-compose.prod.yml` — 운영용 compose (워커 4, restart unless-stopped, 백엔드 포트 외부 미노출)
+- `backend/Caddyfile` — 리버스 프록시 + Let's Encrypt 자동 발급/갱신
+- `backend/.env.production.example` — 운영 환경변수 템플릿 (강한 SECRET_KEY, DB 비번, ACME 이메일 등)
+- `web-admin/.env.production.example` — 관리자 웹 운영 환경변수
+
+**한 줄 기동:**
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+후 `mobile/app.json` 의 `apiBase` 를 운영 도메인으로 바꾸고 `eas update`. cloudflared 종료해도 서비스 계속 동작.
+
+전체 절차·옵션·트러블슈팅은 별도 문서 **`DEPLOYMENT.md`** 참고.
+
+### 11.4 모바일 빌드
+| 단계 | 명령 |
+|---|---|
+| EAS CLI 설치 | `npm install -g eas-cli` |
+| 로그인 / 프로젝트 연결 | `eas login` → `cd mobile && eas init` |
+| Android APK | `eas build --platform android --profile preview` |
+| Android AAB | `eas build --platform android --profile production` |
+| iOS (Apple Dev 계정 필요) | `eas build --platform ios --profile preview` |
+| JS-only 패치 (apiBase 교체 포함) | `eas update --branch preview --platform android --message "..."` |
+
+상세: `mobile/BUILD.md`.
+
+### 11.5 운영 체크리스트
+- [ ] `SECRET_KEY` 를 충분히 긴 무작위 문자열로 교체 (`python -c "import secrets; print(secrets.token_urlsafe(64))"`)
 - [ ] `SEED_ADMIN_PASSWORD` 변경 후 1회 사용 즉시 폐기 → 실 관리자 계정으로 교체
-- [ ] HTTPS 종단 (Nginx/Traefik/CloudFront 등) 앞단 배치
-- [ ] PostgreSQL 자동 백업 + 암호화
-- [ ] Firebase 서비스 계정 발급 및 `FIREBASE_CREDENTIALS_PATH` 설정
-- [ ] Alembic 도입 후 `create_all` 제거
+- [ ] HTTPS 종단 — v0.4 에선 **Caddy** 가 자동 처리 (Let's Encrypt)
+- [ ] PostgreSQL 자동 백업 + 암호화 (cron `pg_dump`, 7-30일 보관)
+- [ ] EAS Credentials 에 **FCM V1 서비스 계정 키** 등록 완료 — v0.4 에서 필수
+- [ ] **Alembic 도입 후 `create_all` 제거** — 특히 v0.2의 컬럼 추가/신규 테이블이 기존 DB에는 자동 적용되지 않음
 - [ ] 접근 로그(audit log) 테이블 추가
+- [ ] **환자 가입 승인 시 `survey_group` (B/C) 지정 누락 여부 확인** — 가입 요청 페이지의 승인 폼은 그룹 선택을 강제하지만, 관리자 인지 부족 시 임의 선택 위험
+- [ ] **마일리지 적립 기준 / 정산 주기 SOP 문서화** — 관리자가 토글하는 기준(예: "월 1회 이상 설문 제출 시 적립")이 운영 팀 합의로 명문화되어야 환자 분쟁 예방
+- [ ] **마일리지 화면 전화번호 placeholder (`010-XXXX-XXXX`) 를 실 번호로 OTA 교체** — 미교체 상태에선 환자가 탭 시 "전화번호 미설정" 안내만 나옴
+- [ ] 외부 모니터링 (UptimeRobot 등) 으로 `/health` 분당 1회 헬스체크
 
 ---
 
@@ -503,9 +795,13 @@ cd mobile; npm install; npx expo start
 
 | 우선순위 | 항목 | 비고 |
 |---|---|---|
-| H | Alembic 마이그레이션 | 운영 진입 전 필수 |
-| H | 보고 누락 자동 알림 스케줄러 | APScheduler / Celery beat — 매일 21시 미보고자 자동 푸시 |
-| H | 비밀번호 재설정 / 변경 흐름 | 환자가 직접 수행 가능 |
+| H | Alembic 마이그레이션 | 운영 진입 전 필수. v0.2 스키마 변경 반영을 위해 가장 시급 |
+| H | 보고/설문 누락 자동 알림 스케줄러 | APScheduler / Celery beat — 매일 21시 미보고자 자동 푸시 |
+| M | 비밀번호 초기화 본인 인증 자동화 | v0.4 에서 환자 신청 + 관리자 승인 흐름은 구현됨. 추후 SMS/이메일 OTP 로 본인 확인 자동화 검토 |
+| M | **설문 응답 점수화 + 통계 리포트** | FFQ/MARS-5 별 합산 점수, 환자별 추이 그래프 |
+| M | **설문 템플릿 DB 이전** | 운영 중 문항 수정/버전 관리를 위해 `survey_templates / questions / options` 테이블화 |
+| M | **마일리지 자동 적립 룰** | "월 N회 보고 시 자동 적립" / 결제/송금 연동 (계좌이체·기프티콘) |
+| M | **카드뉴스 기능** | 본 마일스톤에서 제외했던 콘텐츠 모듈. 관리자가 환자별/그룹별 교육 자료 푸시 |
 | M | 관리자용 통계 대시보드 | 요산 추이 라인 차트, 발작 빈도, 식단 카테고리 분포 |
 | M | 푸린 함량 자동 추정 | 식약처/논문 데이터셋 기반 매칭 |
 | M | 권한 분리 | 의료진/원무 분리, 감사 로그 |
@@ -516,6 +812,8 @@ cd mobile; npm install; npx expo start
 
 ## 13. 결론
 
-본 시스템은 **환자의 매일 1회 보고**라는 일관된 운영 패턴을 디지털화하고, **관리자가 "누가/언제/얼마나" 미보고했는지를 한 화면에서 즉시 파악**할 수 있도록 설계되었다. 푸시 알림으로 환자에게 즉시 독촉 가능한 흐름까지 구현하여, 기존 전화 기반 보고가 가진 운영 가시성 부족 문제를 해결한다.
+본 시스템은 **환자의 매일 1회 보고 + 주기적 설문 + 24개월 마일리지**라는 세 가지 동기 부여 채널을 한 앱에서 통합 운영할 수 있도록 설계되었다. 관리자는 웹 콘솔에서 "누가/언제/얼마나 미보고했는지"와 "누가 어디까지 적립되었는지"를 한 화면에서 즉시 파악 가능하고, 푸시 알림으로 즉시 독촉할 수 있어 기존 전화 기반 보고가 가진 운영 가시성 부족 문제를 해결한다.
 
-기술적으로는 **FastAPI / Next.js / Expo**라는 동시대적이고 학습 곡선이 비교적 완만한 스택을 채택하여, 유지보수와 추후 기능 확장(통계·자동화·다국어 등)에 대비했다.
+마일리지는 6개월 단위 사이클 구조(3,000 × 5 + 5,000)로 설계되어 환자의 단기 동기(매월 작은 동그라미)와 장기 임상 동기(6개월 병원 방문)를 동시에 자극한다.
+
+기술적으로는 **FastAPI / Next.js / Expo + EAS Build**라는 동시대적이고 학습 곡선이 비교적 완만한 스택을 채택하여, 유지보수와 추후 기능 확장(통계·자동화·카드뉴스·송금 연동 등)에 대비했다.

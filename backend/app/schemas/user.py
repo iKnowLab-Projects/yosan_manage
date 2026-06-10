@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 from app.models.user import UserRole
 
@@ -15,6 +15,14 @@ class PatientProfileIn(BaseModel):
     baseline_uric_acid: Optional[float] = None
     medications: Optional[str] = None
     notes: Optional[str] = None
+    survey_group: Optional[Literal["B", "C"]] = None
+
+    @field_validator("survey_group", mode="before")
+    @classmethod
+    def _empty_to_none(cls, v):
+        if v in ("", None):
+            return None
+        return v
 
 
 class PatientProfileOut(PatientProfileIn):

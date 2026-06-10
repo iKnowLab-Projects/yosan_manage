@@ -6,8 +6,8 @@
 ```powershell
 docker compose up --build
 ```
-- API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
+- API: http://localhost:26610
+- Swagger UI: http://localhost:26610/docs
 - 기본 관리자: `admin@yosan.local` / `admin1234`
 
 ### 로컬 실행

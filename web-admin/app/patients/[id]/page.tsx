@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
-import { api, DailyReport, Patient } from "@/lib/api";
+import MileagePanel from "@/components/MileagePanel";
+import { api, DailyReport, Patient, SurveySubmission } from "@/lib/api";
 
 const MEAL_LABEL: Record<string, string> = {
   breakfast: "아침",
@@ -26,18 +27,21 @@ function PatientDetail() {
   const id = Number(params?.id);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [reports, setReports] = useState<DailyReport[]>([]);
+  const [surveys, setSurveys] = useState<SurveySubmission[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       try {
-        const [p, r] = await Promise.all([
+        const [p, r, s] = await Promise.all([
           api<Patient>(`/api/v1/patients/${id}`),
           api<DailyReport[]>(`/api/v1/reports/patient/${id}`),
+          api<SurveySubmission[]>(`/api/v1/surveys/patient/${id}`),
         ]);
         setPatient(p);
         setReports(r);
+        setSurveys(s);
       } catch (err) {
         setError(err instanceof Error ? err.message : "조회 실패");
       }
@@ -79,6 +83,20 @@ function PatientDetail() {
               prof.baseline_uric_acid ? `${prof.baseline_uric_acid} mg/dL` : "—"
             }
           />
+          <SurveyGroupEditor
+            patientId={patient.id}
+            current={prof.survey_group ?? null}
+            onSaved={(g) =>
+              setPatient((p) =>
+                p
+                  ? {
+                      ...p,
+                      profile: { ...(p.profile ?? {}), survey_group: g },
+                    }
+                  : p,
+              )
+            }
+          />
           <Row
             label="복용 약물"
             value={prof.medications ?? "—"}
@@ -86,6 +104,57 @@ function PatientDetail() {
           />
           <Row label="비고" value={prof.notes ?? "—"} className="col-span-2" />
         </dl>
+      </section>
+
+      <MileagePanel patientId={patient.id} />
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">
+          설문 제출 이력 ({surveys.length}건)
+        </h2>
+        {surveys.length === 0 ? (
+          <p className="rounded-lg border bg-white px-4 py-8 text-center text-slate-500">
+            설문 제출 이력이 없습니다.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {surveys.map((s) => (
+              <li key={s.id} className="rounded-lg border bg-white p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-slate-800">
+                      {s.check_date}
+                    </span>
+                    <span className="ml-2 rounded bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                      {s.survey_group}군
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    제출 {new Date(s.submitted_at).toLocaleString("ko-KR")}
+                  </span>
+                </div>
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {s.answers.map((a) => (
+                    <li
+                      key={a.question_code}
+                      className="grid grid-cols-[120px_1fr] gap-3"
+                    >
+                      <span className="font-mono text-xs text-slate-500">
+                        {a.question_code}
+                      </span>
+                      <span>{a.choice_label}</span>
+                    </li>
+                  ))}
+                </ul>
+                {s.notes && (
+                  <p className="mt-3 border-t pt-3 text-sm text-slate-600">
+                    {s.notes}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>
@@ -199,6 +268,96 @@ function Row({
     <div className={className}>
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="text-slate-800">{value}</dd>
+    </div>
+  );
+}
+
+function SurveyGroupEditor({
+  patientId,
+  current,
+  onSaved,
+}: {
+  patientId: number;
+  current: "B" | "C" | null;
+  onSaved: (g: "B" | "C" | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<string>(current ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api(`/api/v1/patients/${patientId}/profile`, {
+        method: "PUT",
+        body: JSON.stringify({ survey_group: value || null }),
+      });
+      onSaved((value || null) as "B" | "C" | null);
+      setEditing(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const label =
+    current === "B"
+      ? "B군 (저요산식단)"
+      : current === "C"
+        ? "C군 (DASH식단)"
+        : "미지정";
+
+  return (
+    <div>
+      <dt className="text-xs text-slate-500">설문 그룹</dt>
+      <dd className="flex items-center gap-2 text-slate-800">
+        {editing ? (
+          <>
+            <select
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="rounded border px-2 py-1 text-sm"
+            >
+              <option value="">미지정</option>
+              <option value="B">B군 (저요산식단)</option>
+              <option value="C">C군 (DASH식단)</option>
+            </select>
+            <button
+              onClick={save}
+              disabled={busy}
+              className="rounded bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            >
+              {busy ? "저장 중..." : "저장"}
+            </button>
+            <button
+              onClick={() => {
+                setEditing(false);
+                setValue(current ?? "");
+                setErr(null);
+              }}
+              className="rounded border px-3 py-1 text-xs"
+            >
+              취소
+            </button>
+            {err && (
+              <span className="text-xs text-red-700">{err}</span>
+            )}
+          </>
+        ) : (
+          <>
+            <span>{label}</span>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-brand-600 hover:underline"
+            >
+              변경
+            </button>
+          </>
+        )}
+      </dd>
     </div>
   );
 }

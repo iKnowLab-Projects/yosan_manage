@@ -1,0 +1,74 @@
+version: "3.9"
+
+# 운영용 docker-compose.
+# 사용법: docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# dev 와 다른 점:
+#  - 백엔드 포트를 호스트에 노출하지 않음 (오직 Caddy 만 80/443 노출)
+#  - uvicorn 워커 4개, --reload 제거
+#  - Caddy 리버스 프록시 + Let's Encrypt 자동 HTTPS
+#  - 모든 컨테이너 restart: unless-stopped
+#  - DB 자격증명·시크릿은 환경변수로 외부화
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - yosan_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d $${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
+    volumes:
+      - ${FIREBASE_CREDENTIALS_HOST_DIR:-./creds}:/app/creds:ro
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 26610
+      --workers ${UVICORN_WORKERS:-4}
+      --proxy-headers
+      --forwarded-allow-ips=*
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN_API: ${DOMAIN_API}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  yosan_pgdata:
+  caddy_data:
+  caddy_config:

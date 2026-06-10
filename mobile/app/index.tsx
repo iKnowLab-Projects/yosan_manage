@@ -21,6 +21,6 @@ export default function Index() {
       </View>
     );
   }
-  if (user && user.role === "patient") return <Redirect href="/(app)/home" />;
+  if (user && user.role === "patient") return <Redirect href="/(app)/mileage" />;
   return <Redirect href="/(auth)/login" />;
 }
