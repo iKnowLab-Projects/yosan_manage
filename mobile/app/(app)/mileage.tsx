@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -42,9 +42,12 @@ export default function MileageScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // 설문 작성 후 돌아왔을 때 등, 화면에 들어올 때마다 최신 완료 현황 반영
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const cycles = useMemo<MileageMonth[][]>(() => {
     if (!summary) return [];

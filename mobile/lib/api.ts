@@ -182,6 +182,7 @@ export type CardNews = {
   summary?: string | null;
   body?: string | null;
   image_key: string;
+  images: string[];
   link_url?: string | null;
   display_order: number;
   is_published: boolean;

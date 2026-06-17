@@ -1,9 +1,29 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Image } from "react-native";
+import { Image, Text, TouchableOpacity } from "react-native";
 import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "@/lib/push";
 import { tabIcons } from "@/lib/images";
+
+// 서브 화면용 뒤로가기 버튼 (헤더 좌측, 눈에 거슬리지 않는 표준 위치)
+function HeaderBack() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => (router.canGoBack() ? router.back() : router.replace("/(app)/home"))}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      style={{ paddingHorizontal: 14, paddingVertical: 4 }}
+    >
+      <Text style={{ fontSize: 26, color: "#2563eb", lineHeight: 28 }}>‹</Text>
+    </TouchableOpacity>
+  );
+}
+
+const hiddenScreen = (title: string) => ({
+  href: null as null,
+  title,
+  headerLeft: () => <HeaderBack />,
+});
 
 // 아이콘이 컬러 일러스트이므로 tintColor 를 적용하지 않고 원본 색을 유지한다.
 // 활성/비활성 상태는 투명도와 라벨 색상으로 표현한다.
@@ -74,20 +94,14 @@ export default function AppLayout() {
         }}
       />
 
-      {/* ===== 숨김 라우트 (탭바 미노출, 네비게이션으로만 진입) ===== */}
-      <Tabs.Screen name="profile" options={{ href: null, title: "내 정보" }} />
-      <Tabs.Screen name="history" options={{ href: null, title: "나의 기록" }} />
-      <Tabs.Screen name="survey" options={{ href: null, title: "설문" }} />
-      <Tabs.Screen name="board" options={{ href: null, title: "공지 · FAQ" }} />
-      <Tabs.Screen
-        name="board-detail"
-        options={{ href: null, title: "게시글" }}
-      />
-      <Tabs.Screen name="cardnews" options={{ href: null, title: "카드뉴스" }} />
-      <Tabs.Screen
-        name="cardnews-detail"
-        options={{ href: null, title: "카드뉴스" }}
-      />
+      {/* ===== 숨김 라우트 (탭바 미노출, 네비게이션으로만 진입) — 헤더 뒤로가기 제공 ===== */}
+      <Tabs.Screen name="profile" options={hiddenScreen("내 정보")} />
+      <Tabs.Screen name="history" options={hiddenScreen("나의 기록")} />
+      <Tabs.Screen name="survey" options={hiddenScreen("설문")} />
+      <Tabs.Screen name="board" options={hiddenScreen("공지 · FAQ")} />
+      <Tabs.Screen name="board-detail" options={hiddenScreen("게시글")} />
+      <Tabs.Screen name="cardnews" options={hiddenScreen("카드뉴스")} />
+      <Tabs.Screen name="cardnews-detail" options={hiddenScreen("카드뉴스")} />
     </Tabs>
   );
 }

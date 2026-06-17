@@ -12,6 +12,7 @@ from app.data.survey_templates import (
     question_options,
 )
 from app.db.session import get_db
+from app.models.mileage import TOTAL_MONTHS, MileageCompletion
 from app.models.patient import PatientProfile
 from app.models.survey import SurveyAnswer, SurveySubmission
 from app.models.user import User, UserRole
@@ -22,6 +23,50 @@ from app.schemas.survey import (
 )
 
 router = APIRouter(prefix="/surveys", tags=["surveys"])
+
+
+def _auto_complete_mileage(db: Session, patient_id: int, check_date: date) -> None:
+    """설문 제출 시 이번 달 마일리지 미션(다음 미완료 월)을 자동 완료 처리.
+
+    한 달에 1회만 진행하는 미션이므로, 같은 달에 이미 제출 이력이 있으면
+    중복 완료를 방지한다. (프론트도 월 1회로 제한하지만 백엔드에서도 방어)
+    """
+    month_start = check_date.replace(day=1)
+    if check_date.month == 12:
+        next_start = check_date.replace(year=check_date.year + 1, month=1, day=1)
+    else:
+        next_start = check_date.replace(month=check_date.month + 1, day=1)
+
+    submissions_this_month = (
+        db.query(SurveySubmission)
+        .filter(
+            SurveySubmission.patient_id == patient_id,
+            SurveySubmission.check_date >= month_start,
+            SurveySubmission.check_date < next_start,
+        )
+        .count()
+    )
+    # 방금 커밋한 제출 포함. 이번이 이번 달 첫 제출이 아니면 건너뜀.
+    if submissions_this_month != 1:
+        return
+
+    completed = {
+        r.month_index
+        for r in db.query(MileageCompletion)
+        .filter(MileageCompletion.patient_id == patient_id)
+        .all()
+    }
+    for m in range(1, TOTAL_MONTHS + 1):
+        if m not in completed:
+            db.add(
+                MileageCompletion(
+                    patient_id=patient_id,
+                    month_index=m,
+                    note="설문 제출 자동 완료",
+                )
+            )
+            db.commit()
+            break
 
 
 def _patient_group(db: Session, user: User) -> str:
@@ -116,6 +161,10 @@ def submit(
     db.add(submission)
     db.commit()
     db.refresh(submission)
+
+    # 설문 제출 → 이번 달 마일리지 미션 자동 완료(체크)
+    _auto_complete_mileage(db, user.id, submission.check_date)
+
     return SurveySubmissionOut.model_validate(submission)
 
 

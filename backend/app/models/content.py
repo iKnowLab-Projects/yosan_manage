@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -32,7 +32,9 @@ class CardNews(Base):
     title: Mapped[str] = mapped_column(String(200))
     summary: Mapped[str | None] = mapped_column(String(300))
     body: Mapped[str | None] = mapped_column(Text)
-    image_key: Mapped[str] = mapped_column(String(300))
+    image_key: Mapped[str] = mapped_column(String(300))  # 대표(썸네일) 이미지
+    # 상세 화면에서 좌우로 넘기는 이미지 목록 (image_key 들의 배열)
+    images: Mapped[list[str]] = mapped_column(JSON, default=list)
     link_url: Mapped[str | None] = mapped_column(String(500))
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)

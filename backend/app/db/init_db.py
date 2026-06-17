@@ -1,5 +1,6 @@
 import logging
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -10,9 +11,31 @@ from app.models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
 
+SAMPLE_CARD_IMAGES = [
+    "cardnews_sample1",
+    "cardnews_sample2",
+    "cardnews_sample3",
+]
+
+
+def _migrate() -> None:
+    """create_all 로 처리되지 않는 컬럼 추가를 보정 (Postgres, 멱등)."""
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE card_news ADD COLUMN IF NOT EXISTS images JSON")
+        )
+        # 컬럼 추가 이전에 생성된 카드뉴스(NULL)를 데모용 샘플 이미지로 backfill
+        conn.execute(
+            text(
+                "UPDATE card_news SET images = CAST(:imgs AS JSON) WHERE images IS NULL"
+            ),
+            {"imgs": '["cardnews_sample1", "cardnews_sample2", "cardnews_sample3"]'},
+        )
+
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    _migrate()
     db: Session = SessionLocal()
     try:
         admin = db.query(User).filter(User.email == settings.seed_admin_email).first()
@@ -79,6 +102,7 @@ def _seed_content(db: Session) -> None:
                         "퓨린이 높은 음식은 줄이고, 채소와 저지방 유제품을 늘려보세요."
                     ),
                     image_key="cardnews_sample1",
+                    images=list(SAMPLE_CARD_IMAGES),
                     display_order=1,
                 ),
                 CardNews(
@@ -89,6 +113,7 @@ def _seed_content(db: Session) -> None:
                         "하루 2L 이상의 물을 꾸준히 마시는 습관을 들여보세요."
                     ),
                     image_key="cardnews_sample2",
+                    images=list(SAMPLE_CARD_IMAGES),
                     display_order=2,
                 ),
                 CardNews(
@@ -99,6 +124,7 @@ def _seed_content(db: Session) -> None:
                         "운동으로 적정 체중을 유지하는 것이 좋습니다."
                     ),
                     image_key="cardnews_sample3",
+                    images=list(SAMPLE_CARD_IMAGES),
                     display_order=3,
                 ),
             ]
