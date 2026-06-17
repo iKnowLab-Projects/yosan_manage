@@ -7,7 +7,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "platforms": ["android", "ios"],
+    "icon": "./image/logo_icon_refac_remove.png",
     "splash": {
+      "image": "./image/logo_icon_refac_remove.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -25,14 +27,18 @@
       "package": "com.yosan.monitor",
       "useNextNotificationsApi": true,
       "usesCleartextTraffic": true,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./image/logo_icon_refac_remove.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-notifications"
     ],
     "extra": {
-      "apiBase": "https://investigations-contributors-burton-island.trycloudflare.com",
+      "apiBase": "https://looksmart-perspective-sixth-respondents.trycloudflare.com",
       "router": {},
       "eas": {
         "projectId": "32d09c89-fecd-4b4f-9a0d-d9456e4eb4dc"

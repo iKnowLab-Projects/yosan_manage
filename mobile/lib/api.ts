@@ -88,9 +88,15 @@ export type DailyReportPayload = {
   }[];
 };
 
-export type DailyReport = DailyReportPayload & {
+export type DailyReport = Omit<DailyReportPayload, "meals"> & {
   id: number;
   patient_id: number;
+  meals: {
+    id: number;
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    description: string;
+    purine_estimate?: string | null;
+  }[];
   created_at: string;
   updated_at: string;
 };
@@ -157,4 +163,44 @@ export type MileageSummary = {
   max_amount: number;
   cycles_completed: number;
   months: MileageMonth[];
+};
+
+export type Announcement = {
+  id: number;
+  title: string;
+  body: string;
+  category: string; // notice | faq
+  is_pinned: boolean;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CardNews = {
+  id: number;
+  title: string;
+  summary?: string | null;
+  body?: string | null;
+  image_key: string;
+  link_url?: string | null;
+  display_order: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PatientMe = {
+  id: number;
+  email: string;
+  name: string;
+  profile: {
+    phone?: string | null;
+    birth_date?: string | null;
+    gender?: string | null;
+    height_cm?: number | null;
+    baseline_weight_kg?: number | null;
+    baseline_uric_acid?: number | null;
+    medications?: string | null;
+    survey_group?: string | null;
+  } | null;
 };

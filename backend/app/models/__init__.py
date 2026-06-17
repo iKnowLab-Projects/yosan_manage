@@ -6,6 +6,7 @@ from app.models.notification import Notification
 from app.models.survey import SurveySubmission, SurveyAnswer
 from app.models.mileage import MileageCompletion
 from app.models.password_reset import PasswordResetRequest
+from app.models.content import Announcement, CardNews
 
 __all__ = [
     "User",
@@ -20,4 +21,6 @@ __all__ = [
     "SurveyAnswer",
     "MileageCompletion",
     "PasswordResetRequest",
+    "Announcement",
+    "CardNews",
 ]

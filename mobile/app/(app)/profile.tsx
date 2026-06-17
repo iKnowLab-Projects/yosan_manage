@@ -85,6 +85,12 @@ export default function Profile() {
         />
         <Row label="복용 약물" value={p.medications ?? "—"} />
       </View>
+      <TouchableOpacity
+        style={styles.historyBtn}
+        onPress={() => router.push("/(app)/history")}
+      >
+        <Text style={styles.historyBtnText}>나의 기록 보기</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.logout} onPress={logout}>
         <Text style={styles.logoutText}>로그아웃</Text>
       </TouchableOpacity>
@@ -141,6 +147,14 @@ const styles = StyleSheet.create({
   },
   label: { color: "#64748b" },
   value: { color: "#0f172a", fontWeight: "500" },
+  historyBtn: {
+    backgroundColor: "#eff6ff",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  historyBtnText: { color: "#2563eb", fontWeight: "700" },
   logout: {
     marginTop: 8,
     backgroundColor: "#ef4444",

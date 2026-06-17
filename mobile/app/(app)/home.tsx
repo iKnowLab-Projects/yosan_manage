@@ -1,373 +1,309 @@
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
+  Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { api, DailyReport, DailyReportPayload } from "@/lib/api";
+import { api, Announcement, CardNews, PatientMe } from "@/lib/api";
+import { logoIcon, resolveCardImage } from "@/lib/images";
 
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-const MEAL_LABEL: Record<MealType, string> = {
-  breakfast: "아침",
-  lunch: "점심",
-  dinner: "저녁",
-  snack: "간식",
+const CATEGORY_LABEL: Record<string, string> = {
+  notice: "공지",
+  faq: "FAQ",
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 export default function HomeScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [todayReport, setTodayReport] = useState<DailyReport | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [me, setMe] = useState<PatientMe | null>(null);
+  const [cards, setCards] = useState<CardNews[]>([]);
+  const [posts, setPosts] = useState<Announcement[]>([]);
 
-  const [form, setForm] = useState({
-    weight_kg: "",
-    uric_acid: "",
-    water_intake_ml: "",
-    exercise_minutes: "",
-    pain_level: "",
-    pain_location: "",
-    flare_up: false,
-    medication_taken: false,
-    notes: "",
-  });
-  const [meals, setMeals] = useState<
-    { meal_type: MealType; description: string; purine_estimate: string }[]
-  >([
-    { meal_type: "breakfast", description: "", purine_estimate: "" },
-    { meal_type: "lunch", description: "", purine_estimate: "" },
-    { meal_type: "dinner", description: "", purine_estimate: "" },
-  ]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await api<DailyReport | null>("/api/v1/reports/me/today");
-        if (r) {
-          setTodayReport(r);
-          setForm({
-            weight_kg: r.weight_kg?.toString() ?? "",
-            uric_acid: r.uric_acid?.toString() ?? "",
-            water_intake_ml: r.water_intake_ml?.toString() ?? "",
-            exercise_minutes: r.exercise_minutes?.toString() ?? "",
-            pain_level: r.pain_level?.toString() ?? "",
-            pain_location: r.pain_location ?? "",
-            flare_up: !!r.flare_up,
-            medication_taken: !!r.medication_taken,
-            notes: r.notes ?? "",
-          });
-          if (r.meals.length > 0) {
-            setMeals(
-              r.meals.map((m) => ({
-                meal_type: m.meal_type,
-                description: m.description,
-                purine_estimate: m.purine_estimate ?? "",
-              })),
-            );
-          }
-        }
-      } catch (err: any) {
-        Alert.alert("로딩 실패", err?.message ?? "");
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const load = useCallback(async () => {
+    try {
+      const [meRes, cardRes, boardRes] = await Promise.all([
+        api<PatientMe>("/api/v1/patients/me").catch(() => null),
+        api<CardNews[]>("/api/v1/cardnews?limit=10").catch(() => []),
+        api<Announcement[]>("/api/v1/board?limit=3").catch(() => []),
+      ]);
+      setMe(meRes);
+      setCards(cardRes);
+      setPosts(boardRes);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  function setField<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
-    setForm((s) => ({ ...s, [k]: v }));
-  }
+  // 탭 진입 시마다 최신화
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
-  function updateMeal(i: number, k: "description" | "purine_estimate", v: string) {
-    setMeals((arr) => arr.map((m, idx) => (idx === i ? { ...m, [k]: v } : m)));
-  }
-
-  function addSnack() {
-    setMeals((arr) => [
-      ...arr,
-      { meal_type: "snack", description: "", purine_estimate: "" },
-    ]);
-  }
-
-  async function submit() {
-    setSaving(true);
-    try {
-      const payload: DailyReportPayload = {
-        report_date: today(),
-        weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
-        uric_acid: form.uric_acid ? Number(form.uric_acid) : null,
-        water_intake_ml: form.water_intake_ml
-          ? Number(form.water_intake_ml)
-          : null,
-        exercise_minutes: form.exercise_minutes
-          ? Number(form.exercise_minutes)
-          : null,
-        pain_level: form.pain_level ? Number(form.pain_level) : null,
-        pain_location: form.pain_location || null,
-        flare_up: form.flare_up,
-        medication_taken: form.medication_taken,
-        notes: form.notes || null,
-        meals: meals
-          .filter((m) => m.description.trim().length > 0)
-          .map((m) => ({
-            meal_type: m.meal_type,
-            description: m.description,
-            purine_estimate: m.purine_estimate || null,
-          })),
-      };
-
-      const saved = await api<DailyReport>("/api/v1/reports", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      setTodayReport(saved);
-      Alert.alert("저장 완료", "오늘의 보고가 저장되었습니다.");
-    } catch (err: any) {
-      Alert.alert("저장 실패", err?.message ?? "");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const onRefresh = () => {
+    setRefreshing(true);
+    load();
+  };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <Text>불러오는 중...</Text>
+        <ActivityIndicator />
       </View>
     );
   }
 
+  const p = me?.profile ?? {};
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.banner}>
-        <Text style={styles.bannerTitle}>
-          {todayReport ? "오늘 보고 완료" : "오늘 아직 보고하지 않았습니다"}
-        </Text>
-        <Text style={styles.bannerSub}>{today()}</Text>
+    <ScrollView
+      style={{ backgroundColor: "#f8fafc" }}
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* ===== 헤더 / 인사 ===== */}
+      <View style={styles.header}>
+        <Image source={logoIcon} style={styles.logo} resizeMode="contain" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hello}>
+            안녕하세요,{" "}
+            <Text style={{ fontWeight: "800" }}>{me?.name ?? "회원"}</Text>님
+          </Text>
+          <Text style={styles.helloSub}>오늘도 건강한 하루 되세요 🌿</Text>
+        </View>
       </View>
 
-      <Section title="건강 정보">
-        <NumField
-          label="체중 (kg)"
-          value={form.weight_kg}
-          onChange={(v) => setField("weight_kg", v)}
-        />
-        <NumField
-          label="요산 수치 (mg/dL)"
-          value={form.uric_acid}
-          onChange={(v) => setField("uric_acid", v)}
-        />
-        <NumField
-          label="수분 섭취 (ml)"
-          value={form.water_intake_ml}
-          onChange={(v) => setField("water_intake_ml", v)}
-        />
-        <NumField
-          label="운동 시간 (분)"
-          value={form.exercise_minutes}
-          onChange={(v) => setField("exercise_minutes", v)}
-        />
-      </Section>
-
-      <Section title="통증">
-        <NumField
-          label="통증 강도 (0~10)"
-          value={form.pain_level}
-          onChange={(v) => setField("pain_level", v)}
-        />
-        <TextField
-          label="통증 부위"
-          value={form.pain_location}
-          onChange={(v) => setField("pain_location", v)}
-        />
-        <SwitchRow
-          label="통풍 발작 발생"
-          value={form.flare_up}
-          onChange={(v) => setField("flare_up", v)}
-        />
-      </Section>
-
-      <Section title="복약">
-        <SwitchRow
-          label="오늘 약 복용"
-          value={form.medication_taken}
-          onChange={(v) => setField("medication_taken", v)}
-        />
-      </Section>
-
-      <Section title="식단">
-        {meals.map((m, i) => (
-          <View key={`${m.meal_type}-${i}`} style={{ marginBottom: 10 }}>
-            <Text style={styles.label}>{MEAL_LABEL[m.meal_type]}</Text>
-            <TextInput
-              style={styles.input}
-              multiline
-              placeholder="음식 / 양 / 특이사항"
-              value={m.description}
-              onChangeText={(v) => updateMeal(i, "description", v)}
-            />
-            <TextInput
-              style={[styles.input, { marginTop: 6 }]}
-              placeholder="퓨린 함량 추정 (낮음/중간/높음)"
-              value={m.purine_estimate}
-              onChangeText={(v) => updateMeal(i, "purine_estimate", v)}
-            />
-          </View>
-        ))}
-        <TouchableOpacity onPress={addSnack} style={styles.linkButton}>
-          <Text style={styles.linkText}>+ 간식 추가</Text>
+      {/* ===== 내 정보 요약 ===== */}
+      <View style={styles.section}>
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>내 정보</Text>
+          <TouchableOpacity onPress={() => router.push("/(app)/profile")}>
+            <Text style={styles.more}>상세 보기 ›</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.infoGrid}>
+          <InfoCell
+            label="기준 체중"
+            value={p.baseline_weight_kg ? `${p.baseline_weight_kg} kg` : "—"}
+          />
+          <InfoCell
+            label="기준 요산"
+            value={p.baseline_uric_acid ? `${p.baseline_uric_acid} mg/dL` : "—"}
+          />
+          <InfoCell
+            label="신장"
+            value={p.height_cm ? `${p.height_cm} cm` : "—"}
+          />
+          <InfoCell
+            label="설문 그룹"
+            value={p.survey_group ? `${p.survey_group}군` : "—"}
+          />
+        </View>
+        <TouchableOpacity
+          style={styles.historyBtn}
+          onPress={() => router.push("/(app)/history")}
+        >
+          <Text style={styles.historyBtnText}>나의 기록 보기</Text>
         </TouchableOpacity>
-      </Section>
+      </View>
 
-      <Section title="비고">
-        <TextInput
-          style={[styles.input, { minHeight: 80 }]}
-          multiline
-          placeholder="관리자에게 전달할 메모"
-          value={form.notes}
-          onChangeText={(v) => setField("notes", v)}
-        />
-      </Section>
+      {/* ===== 카드뉴스 ===== */}
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>건강 카드뉴스</Text>
+        {cards.length > 0 && (
+          <TouchableOpacity onPress={() => router.push("/(app)/cardnews")}>
+            <Text style={styles.more}>전체 보기 ›</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {cards.length === 0 ? (
+        <EmptyBox text="등록된 카드뉴스가 없습니다." />
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: 16, gap: 12 }}
+          style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
+        >
+          {cards.map((c) => (
+            <TouchableOpacity
+              key={c.id}
+              style={styles.cardNews}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/cardnews-detail",
+                  params: { id: String(c.id) },
+                })
+              }
+            >
+              <Image
+                source={resolveCardImage(c.image_key)}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {c.title}
+                </Text>
+                {!!c.summary && (
+                  <Text style={styles.cardSummary} numberOfLines={2}>
+                    {c.summary}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
-      <TouchableOpacity
-        style={[styles.submitButton, saving && { opacity: 0.6 }]}
-        disabled={saving}
-        onPress={submit}
-      >
-        <Text style={styles.submitText}>
-          {saving ? "저장 중..." : todayReport ? "보고 수정" : "오늘 보고 저장"}
-        </Text>
-      </TouchableOpacity>
+      {/* ===== 공지 · FAQ ===== */}
+      <View style={[styles.sectionHead, { marginTop: 20 }]}>
+        <Text style={styles.sectionTitle}>공지 · FAQ</Text>
+        <TouchableOpacity onPress={() => router.push("/(app)/board")}>
+          <Text style={styles.more}>더 보기 ›</Text>
+        </TouchableOpacity>
+      </View>
+      {posts.length === 0 ? (
+        <EmptyBox text="등록된 게시글이 없습니다." />
+      ) : (
+        <View style={styles.section}>
+          {posts.map((post, i) => (
+            <TouchableOpacity
+              key={post.id}
+              style={[styles.postRow, i > 0 && styles.postDivider]}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/board-detail",
+                  params: { id: String(post.id) },
+                })
+              }
+            >
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {CATEGORY_LABEL[post.category] ?? post.category}
+                </Text>
+              </View>
+              <Text style={styles.postTitle} numberOfLines={1}>
+                {post.is_pinned ? "📌 " : ""}
+                {post.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={{ height: 24 }} />
     </ScrollView>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function InfoCell({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
+    <View style={styles.infoCell}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
 }
 
-function NumField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function EmptyBox({ text }: { text: string }) {
   return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        keyboardType="decimal-pad"
-        onChangeText={onChange}
-      />
-    </View>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} value={value} onChangeText={onChange} />
-    </View>
-  );
-}
-
-function SwitchRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <View style={styles.switchRow}>
-      <Text style={styles.label}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} />
+    <View style={styles.empty}>
+      <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 60, backgroundColor: "#f8fafc" },
+  container: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  banner: {
-    backgroundColor: "#eef6ff",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 18,
   },
-  bannerTitle: { fontSize: 16, fontWeight: "700", color: "#1d4ed8" },
-  bannerSub: { color: "#64748b", marginTop: 4 },
+  logo: { width: 44, height: 44 },
+  hello: { fontSize: 17, color: "#0f172a" },
+  helloSub: { fontSize: 13, color: "#64748b", marginTop: 2 },
   section: {
     backgroundColor: "white",
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 10,
-  },
-  label: { fontSize: 13, color: "#475569", marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: "white",
-  },
-  switchRow: {
+  sectionHead: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 6,
+    marginBottom: 10,
   },
-  linkButton: { paddingVertical: 8 },
-  linkText: { color: "#2563eb", fontWeight: "600" },
-  submitButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 16,
-    borderRadius: 10,
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0f172a" },
+  more: { color: "#2563eb", fontWeight: "600", fontSize: 13 },
+  infoGrid: { flexDirection: "row", flexWrap: "wrap" },
+  infoCell: {
+    width: "50%",
+    paddingVertical: 8,
+  },
+  infoLabel: { fontSize: 12, color: "#94a3b8", marginBottom: 2 },
+  infoValue: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
+  historyBtn: {
+    marginTop: 8,
+    backgroundColor: "#eff6ff",
+    paddingVertical: 11,
+    borderRadius: 8,
     alignItems: "center",
-    marginTop: 4,
   },
-  submitText: { color: "white", fontWeight: "700", fontSize: 16 },
+  historyBtnText: { color: "#2563eb", fontWeight: "700" },
+  cardNews: {
+    width: 200,
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+  cardImage: { width: "100%", height: 120, backgroundColor: "#f1f5f9" },
+  cardBody: { padding: 10 },
+  cardTitle: { fontSize: 14, fontWeight: "700", color: "#0f172a" },
+  cardSummary: { fontSize: 12, color: "#64748b", marginTop: 4 },
+  postRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 11,
+    gap: 8,
+  },
+  postDivider: { borderTopWidth: 1, borderTopColor: "#f1f5f9" },
+  badge: {
+    backgroundColor: "#e0e7ff",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeText: { color: "#4338ca", fontSize: 11, fontWeight: "700" },
+  postTitle: { flex: 1, fontSize: 14, color: "#1e293b" },
+  empty: {
+    backgroundColor: "white",
+    padding: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  emptyText: { color: "#94a3b8", fontSize: 13 },
 });
