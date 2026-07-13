@@ -44,6 +44,9 @@ export default function AuthGuard({
               <a className="hover:underline" href="/cardnews">
                 카드뉴스
               </a>
+              <a className="hover:underline" href="/board">
+                공지·FAQ
+              </a>
               <a className="hover:underline" href="/pending">
                 가입 요청
               </a>

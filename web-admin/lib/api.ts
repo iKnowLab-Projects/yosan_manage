@@ -216,6 +216,25 @@ export type CardNewsIn = {
   is_published: boolean;
 };
 
+export type Announcement = {
+  id: number;
+  title: string;
+  body: string;
+  category: string; // notice | faq
+  is_pinned: boolean;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnnouncementIn = {
+  title: string;
+  body: string;
+  category: string;
+  is_pinned: boolean;
+  is_published: boolean;
+};
+
 export type InBodyResult = {
   id: number;
   patient_id: number;
