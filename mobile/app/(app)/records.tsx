@@ -11,6 +11,19 @@ import {
 } from "react-native";
 import { api, InBodyResult } from "@/lib/api";
 import { resolveImage } from "@/lib/images";
+import LineChart, { ChartPoint } from "@/components/LineChart";
+
+// 추이 그래프로 보여줄 지표 (체중·체지방률·BMI)
+const TREND_METRICS: {
+  key: keyof InBodyResult;
+  title: string;
+  unit: string;
+  color: string;
+}[] = [
+  { key: "weight_kg", title: "체중", unit: "kg", color: "#2563eb" },
+  { key: "percent_body_fat", title: "체지방률", unit: "%", color: "#ef4444" },
+  { key: "bmi", title: "BMI", unit: "", color: "#16a34a" },
+];
 
 // 표시할 InBody 수치 항목 정의 (단위 포함)
 const METRICS: {
@@ -65,6 +78,18 @@ export default function RecordsScreen() {
     }, [load]),
   );
 
+  // 최근 10회를 과거→현재 순으로 (그래프는 왼쪽이 과거)
+  const chrono = [...items].slice(0, 10).reverse();
+  const mkData = (key: keyof InBodyResult): ChartPoint[] =>
+    chrono.map((r) => ({
+      label: String(r.measured_date).slice(5).replace("-", "/"), // MM/DD
+      value: (r[key] as number | null | undefined) ?? null,
+    }));
+  const latestVal = (key: keyof InBodyResult): number | null => {
+    const found = items.find((r) => (r[key] as number | null | undefined) != null);
+    return found ? (found[key] as number) : null;
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -93,6 +118,23 @@ export default function RecordsScreen() {
           {"\n"}여기에서 나의 결과와 변화를 확인할 수 있어요.
         </Text>
       </View>
+
+      {/* ===== 추이 그래프 (체중·체지방률·BMI) ===== */}
+      {items.length >= 2 && (
+        <View style={styles.trendSection}>
+          <Text style={styles.trendHeading}>추이 (최근 {chrono.length}회)</Text>
+          {TREND_METRICS.map((m) => (
+            <MetricChart
+              key={m.key as string}
+              title={m.title}
+              unit={m.unit}
+              color={m.color}
+              latest={latestVal(m.key)}
+              data={mkData(m.key)}
+            />
+          ))}
+        </View>
+      )}
 
       {items.length === 0 ? (
         <View style={styles.empty}>
@@ -170,8 +212,63 @@ export default function RecordsScreen() {
   );
 }
 
+function MetricChart({
+  title,
+  unit,
+  color,
+  latest,
+  data,
+}: {
+  title: string;
+  unit: string;
+  color: string;
+  latest: number | null;
+  data: ChartPoint[];
+}) {
+  return (
+    <View style={styles.chartCard}>
+      <View style={styles.chartHead}>
+        <View style={[styles.chartDot, { backgroundColor: color }]} />
+        <Text style={styles.chartTitle}>{title}</Text>
+        <Text style={styles.chartLatest}>
+          {latest != null ? `${latest}${unit ? ` ${unit}` : ""}` : "—"}
+          <Text style={styles.chartLatestSub}>  최근</Text>
+        </Text>
+      </View>
+      <LineChart data={data} color={color} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
+
+  trendSection: { marginBottom: 4 },
+  trendHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 10,
+    marginLeft: 2,
+  },
+  chartCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 12,
+    marginBottom: 12,
+  },
+  chartHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  chartDot: { width: 10, height: 10, borderRadius: 5, marginRight: 6 },
+  chartTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b", flex: 1 },
+  chartLatest: { fontSize: 15, fontWeight: "800", color: "#0f172a" },
+  chartLatestSub: { fontSize: 11, fontWeight: "600", color: "#94a3b8" },
+
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   notice: {
