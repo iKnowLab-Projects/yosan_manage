@@ -41,6 +41,14 @@ function TabIcon({ source, focused }: { source: any; focused: boolean }) {
   );
 }
 
+// 전용 PNG 아이콘이 없는 신규 탭(내 기록·정보)은 이모지 글리프로 표현한다.
+// 다른 탭과 크기를 맞추고 활성/비활성은 동일하게 투명도로 표현.
+function TabGlyph({ glyph, focused }: { glyph: string; focused: boolean }) {
+  return (
+    <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.45 }}>{glyph}</Text>
+  );
+}
+
 export default function AppLayout() {
   useEffect(() => {
     registerForPushNotificationsAsync().catch(() => {});
@@ -59,10 +67,20 @@ export default function AppLayout() {
         headerTitleStyle: { color: "#1e293b" },
         tabBarActiveTintColor: "#2563eb",
         tabBarInactiveTintColor: "#94a3b8",
-        tabBarLabelStyle: { fontSize: 12 },
+        tabBarLabelStyle: { fontSize: 11 },
       }}
     >
-      {/* ===== 노출 탭: 마일리지 · 알림 · 홈 ===== */}
+      {/* ===== 노출 탭: 홈 · 마일리지 · 내 기록 · 정보 · 알림 ===== */}
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "홈",
+          tabBarLabel: "홈",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon source={tabIcons.home} focused={focused} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="mileage"
         options={{
@@ -71,6 +89,22 @@ export default function AppLayout() {
           tabBarIcon: ({ focused }) => (
             <TabIcon source={tabIcons.mileage} focused={focused} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="records"
+        options={{
+          title: "내 기록",
+          tabBarLabel: "내 기록",
+          tabBarIcon: ({ focused }) => <TabGlyph glyph="🧍" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="info"
+        options={{
+          title: "정보",
+          tabBarLabel: "정보",
+          tabBarIcon: ({ focused }) => <TabGlyph glyph="📰" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -83,21 +117,12 @@ export default function AppLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "홈",
-          tabBarLabel: "홈",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon source={tabIcons.home} focused={focused} />
-          ),
-        }}
-      />
 
       {/* ===== 숨김 라우트 (탭바 미노출, 네비게이션으로만 진입) — 헤더 뒤로가기 제공 ===== */}
       <Tabs.Screen name="profile" options={hiddenScreen("내 정보")} />
       <Tabs.Screen name="history" options={hiddenScreen("나의 기록")} />
       <Tabs.Screen name="survey" options={hiddenScreen("설문")} />
+      <Tabs.Screen name="survey-view" options={hiddenScreen("설문 응답")} />
       <Tabs.Screen name="board" options={hiddenScreen("공지 · FAQ")} />
       <Tabs.Screen name="board-detail" options={hiddenScreen("게시글")} />
       <Tabs.Screen name="cardnews" options={hiddenScreen("카드뉴스")} />

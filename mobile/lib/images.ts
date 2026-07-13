@@ -1,5 +1,6 @@
 // 정적 require() 경로 모음 (Metro 번들러는 동적 경로를 지원하지 않으므로 중앙 집중)
 import type { ImageSourcePropType } from "react-native";
+import { API_BASE } from "./api";
 
 export const logoIcon: ImageSourcePropType = require("../image/logo_icon_refac_remove.png");
 
@@ -16,7 +17,14 @@ const cardNewsImages: Record<string, ImageSourcePropType> = {
   cardnews_sample3: require("../image/cardnews_sample3.png"),
 };
 
-export function resolveCardImage(imageKey: string): ImageSourcePropType {
-  if (cardNewsImages[imageKey]) return cardNewsImages[imageKey];
-  return { uri: imageKey };
+// 번들 샘플 키 / 외부 URL / 백엔드 업로드 상대경로(/uploads/..) 를 모두 해석.
+export function resolveImage(key?: string | null): ImageSourcePropType {
+  if (!key) return { uri: "" };
+  if (cardNewsImages[key]) return cardNewsImages[key];
+  if (/^https?:\/\//.test(key)) return { uri: key };
+  if (key.startsWith("/")) return { uri: `${API_BASE}${key}` }; // 백엔드 업로드
+  return { uri: key };
 }
+
+// 하위 호환 별칭 (기존 카드뉴스 화면들이 사용)
+export const resolveCardImage = resolveImage;

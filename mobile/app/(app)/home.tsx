@@ -10,32 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api, Announcement, CardNews, PatientMe } from "@/lib/api";
-import { logoIcon, resolveCardImage } from "@/lib/images";
-
-const CATEGORY_LABEL: Record<string, string> = {
-  notice: "공지",
-  faq: "FAQ",
-};
+import { api, PatientMe } from "@/lib/api";
+import { logoIcon } from "@/lib/images";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [me, setMe] = useState<PatientMe | null>(null);
-  const [cards, setCards] = useState<CardNews[]>([]);
-  const [posts, setPosts] = useState<Announcement[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [meRes, cardRes, boardRes] = await Promise.all([
-        api<PatientMe>("/api/v1/patients/me").catch(() => null),
-        api<CardNews[]>("/api/v1/cardnews?limit=10").catch(() => []),
-        api<Announcement[]>("/api/v1/board?limit=3").catch(() => []),
-      ]);
+      const meRes = await api<PatientMe>("/api/v1/patients/me").catch(() => null);
       setMe(meRes);
-      setCards(cardRes);
-      setPosts(boardRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -114,95 +101,28 @@ export default function HomeScreen() {
           style={styles.historyBtn}
           onPress={() => router.push("/(app)/history")}
         >
-          <Text style={styles.historyBtnText}>나의 기록 보기</Text>
+          <Text style={styles.historyBtnText}>일일 보고 기록 보기</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ===== 카드뉴스 ===== */}
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>건강 카드뉴스</Text>
-        {cards.length > 0 && (
-          <TouchableOpacity onPress={() => router.push("/(app)/cardnews")}>
-            <Text style={styles.more}>전체 보기 ›</Text>
-          </TouchableOpacity>
-        )}
+      {/* ===== 바로가기 ===== */}
+      <View style={styles.shortcutRow}>
+        <Shortcut
+          emoji="🏅"
+          label="마일리지"
+          onPress={() => router.push("/(app)/mileage")}
+        />
+        <Shortcut
+          emoji="🧍"
+          label="내 기록"
+          onPress={() => router.push("/(app)/records")}
+        />
+        <Shortcut
+          emoji="📰"
+          label="정보"
+          onPress={() => router.push("/(app)/info")}
+        />
       </View>
-      {cards.length === 0 ? (
-        <EmptyBox text="등록된 카드뉴스가 없습니다." />
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingRight: 16, gap: 12 }}
-          style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
-        >
-          {cards.map((c) => (
-            <TouchableOpacity
-              key={c.id}
-              style={styles.cardNews}
-              activeOpacity={0.85}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/cardnews-detail",
-                  params: { id: String(c.id) },
-                })
-              }
-            >
-              <Image
-                source={resolveCardImage(c.image_key)}
-                style={styles.cardImage}
-                resizeMode="cover"
-              />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                  {c.title}
-                </Text>
-                {!!c.summary && (
-                  <Text style={styles.cardSummary} numberOfLines={2}>
-                    {c.summary}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* ===== 공지 · FAQ ===== */}
-      <View style={[styles.sectionHead, { marginTop: 20 }]}>
-        <Text style={styles.sectionTitle}>공지 · FAQ</Text>
-        <TouchableOpacity onPress={() => router.push("/(app)/board")}>
-          <Text style={styles.more}>더 보기 ›</Text>
-        </TouchableOpacity>
-      </View>
-      {posts.length === 0 ? (
-        <EmptyBox text="등록된 게시글이 없습니다." />
-      ) : (
-        <View style={styles.section}>
-          {posts.map((post, i) => (
-            <TouchableOpacity
-              key={post.id}
-              style={[styles.postRow, i > 0 && styles.postDivider]}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/board-detail",
-                  params: { id: String(post.id) },
-                })
-              }
-            >
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {CATEGORY_LABEL[post.category] ?? post.category}
-                </Text>
-              </View>
-              <Text style={styles.postTitle} numberOfLines={1}>
-                {post.is_pinned ? "📌 " : ""}
-                {post.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
       <View style={{ height: 24 }} />
     </ScrollView>
@@ -218,11 +138,20 @@ function InfoCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EmptyBox({ text }: { text: string }) {
+function Shortcut({
+  emoji,
+  label,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyText}>{text}</Text>
-    </View>
+    <TouchableOpacity style={styles.shortcut} onPress={onPress} activeOpacity={0.85}>
+      <Text style={styles.shortcutEmoji}>{emoji}</Text>
+      <Text style={styles.shortcutLabel}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -269,41 +198,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   historyBtnText: { color: "#2563eb", fontWeight: "700" },
-  cardNews: {
-    width: 200,
+
+  shortcutRow: { flexDirection: "row", gap: 12 },
+  shortcut: {
+    flex: 1,
     backgroundColor: "white",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    overflow: "hidden",
-  },
-  cardImage: { width: "100%", height: 120, backgroundColor: "#f1f5f9" },
-  cardBody: { padding: 10 },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: "#0f172a" },
-  cardSummary: { fontSize: 12, color: "#64748b", marginTop: 4 },
-  postRow: {
-    flexDirection: "row",
+    paddingVertical: 18,
     alignItems: "center",
-    paddingVertical: 11,
-    gap: 8,
   },
-  postDivider: { borderTopWidth: 1, borderTopColor: "#f1f5f9" },
-  badge: {
-    backgroundColor: "#e0e7ff",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeText: { color: "#4338ca", fontSize: 11, fontWeight: "700" },
-  postTitle: { flex: 1, fontSize: 14, color: "#1e293b" },
-  empty: {
-    backgroundColor: "white",
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  emptyText: { color: "#94a3b8", fontSize: 13 },
+  shortcutEmoji: { fontSize: 26, marginBottom: 6 },
+  shortcutLabel: { fontSize: 13, fontWeight: "600", color: "#334155" },
 });

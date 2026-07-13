@@ -64,6 +64,23 @@ export default function MileageScreen() {
     return first?.month_index ?? null;
   }, [summary]);
 
+  const onPressCompleted = useCallback(
+    (m: MileageMonth) => {
+      if (m.survey_submission_id) {
+        router.push({
+          pathname: "/(app)/survey-view",
+          params: { id: String(m.survey_submission_id) },
+        });
+      } else {
+        Alert.alert(
+          "완료된 미션",
+          "이 달은 설문 없이 완료 처리되어 열람할 설문 응답이 없습니다.",
+        );
+      }
+    },
+    [router],
+  );
+
   const onPressTarget = useCallback(() => {
     Alert.alert(
       "이번 달 미션",
@@ -194,10 +211,15 @@ export default function MileageScreen() {
               month={m}
               isCurrent={m.month_index === currentMonthIndex}
               onPressCurrent={onPressTarget}
+              onPressCompleted={() => onPressCompleted(m)}
             />
           ))}
         </View>
       </View>
+
+      <Text style={styles.tapHint}>
+        완료(✓)된 달을 누르면 그 달에 제출한 설문을 볼 수 있어요.
+      </Text>
 
       {targetInThisCycle && (
         <View style={styles.hint}>
@@ -217,10 +239,12 @@ function Circle({
   month,
   isCurrent,
   onPressCurrent,
+  onPressCompleted,
 }: {
   month: MileageMonth;
   isCurrent: boolean;
   onPressCurrent: () => void;
+  onPressCompleted: () => void;
 }) {
   const big = month.is_hospital_visit;
   const completed = month.completed;
@@ -255,6 +279,15 @@ function Circle({
         style={styles.cell}
         hitSlop={8}
       >
+        {inner}
+        {label}
+      </Pressable>
+    );
+  }
+  // 완료된 달은 눌러서 해당 월 설문 응답을 열람할 수 있다.
+  if (completed) {
+    return (
+      <Pressable onPress={onPressCompleted} style={styles.cell} hitSlop={8}>
         {inner}
         {label}
       </Pressable>
@@ -435,6 +468,12 @@ const styles = StyleSheet.create({
   cellMonth: { fontSize: 10, color: "#475569", marginTop: 4 },
   currentMonthLabel: { color: "#15803d", fontWeight: "700" },
 
+  tapHint: {
+    color: "#94a3b8",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 10,
+  },
   hint: {
     marginTop: 4,
     padding: 12,

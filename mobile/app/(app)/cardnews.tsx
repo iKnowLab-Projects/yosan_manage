@@ -67,6 +67,11 @@ export default function CardNewsList() {
             <Text style={styles.title} numberOfLines={2}>
               {item.title}
             </Text>
+            {!!item.author && (
+              <Text style={styles.author} numberOfLines={1}>
+                {item.author}
+              </Text>
+            )}
             {!!item.summary && (
               <Text style={styles.summary} numberOfLines={2}>
                 {item.summary}
@@ -91,5 +96,6 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: 180, backgroundColor: "#f1f5f9" },
   body: { padding: 14 },
   title: { fontSize: 16, fontWeight: "700", color: "#0f172a" },
+  author: { fontSize: 12, color: "#94a3b8", marginTop: 4 },
   summary: { fontSize: 13, color: "#64748b", marginTop: 6, lineHeight: 19 },
 });

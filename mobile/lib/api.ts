@@ -154,6 +154,7 @@ export type MileageMonth = {
   completed: boolean;
   completed_at?: string | null;
   note?: string | null;
+  survey_submission_id?: number | null;
 };
 
 export type MileageSummary = {
@@ -179,6 +180,7 @@ export type Announcement = {
 export type CardNews = {
   id: number;
   title: string;
+  author?: string | null;
   summary?: string | null;
   body?: string | null;
   image_key: string;
@@ -186,6 +188,24 @@ export type CardNews = {
   link_url?: string | null;
   display_order: number;
   is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InBodyResult = {
+  id: number;
+  patient_id: number;
+  measured_date: string;
+  weight_kg?: number | null;
+  skeletal_muscle_mass?: number | null;
+  body_fat_mass?: number | null;
+  bmi?: number | null;
+  percent_body_fat?: number | null;
+  basal_metabolic_rate?: number | null;
+  total_body_water?: number | null;
+  inbody_score?: number | null;
+  image_key?: string | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -103,6 +103,9 @@ export default function CardNewsDetail() {
       {/* ===== 글 영역 (이미지와 별개로 항상 보존) ===== */}
       <View style={styles.body}>
         <Text style={styles.title}>{item.title}</Text>
+        {!!item.author && (
+          <Text style={styles.author}>게시자 · {item.author}</Text>
+        )}
         {!!item.summary && <Text style={styles.summary}>{item.summary}</Text>}
         {!!item.body && <Text style={styles.content}>{item.body}</Text>}
         {!!item.link_url && (
@@ -153,6 +156,7 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: "white", width: 18 },
   body: { padding: 18 },
   title: { fontSize: 22, fontWeight: "800", color: "#0f172a", lineHeight: 30 },
+  author: { fontSize: 13, color: "#94a3b8", marginTop: 8 },
   summary: {
     fontSize: 15,
     color: "#475569",
