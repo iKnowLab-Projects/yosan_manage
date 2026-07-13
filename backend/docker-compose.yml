@@ -23,10 +23,10 @@ services:
       SEED_ADMIN_EMAIL: admin@yosan.com
       SEED_ADMIN_PASSWORD: admin1234
     ports:
-      - "26610:26610"
+      - "8086:8086"
     volumes:
       - ./:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 26610 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8086 --reload
 
 volumes:
   yosan_pgdata:
