@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models.content import Announcement, CardNews
+from app.models.inbody import InBodyResult  # noqa: F401  (create_all 등록용)
 from app.models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,17 @@ def _migrate() -> None:
                 "UPDATE card_news SET images = CAST(:imgs AS JSON) WHERE images IS NULL"
             ),
             {"imgs": '["cardnews_sample1", "cardnews_sample2", "cardnews_sample3"]'},
+        )
+        # 카드뉴스 게시자
+        conn.execute(
+            text("ALTER TABLE card_news ADD COLUMN IF NOT EXISTS author VARCHAR(100)")
+        )
+        # 설문 제출로 자동 완료된 마일리지 → 해당 제출 연결
+        conn.execute(
+            text(
+                "ALTER TABLE mileage_completions "
+                "ADD COLUMN IF NOT EXISTS survey_submission_id INTEGER"
+            )
         )
 
 
@@ -96,6 +108,7 @@ def _seed_content(db: Session) -> None:
             [
                 CardNews(
                     title="통풍, 식이로 관리하기",
+                    author="요산 관리팀",
                     summary="퓨린이 높은 음식과 낮은 음식을 한눈에",
                     body=(
                         "통풍 관리의 첫걸음은 식이 조절입니다. 붉은 고기, 내장류, 등푸른 생선 등 "
@@ -107,6 +120,7 @@ def _seed_content(db: Session) -> None:
                 ),
                 CardNews(
                     title="물 마시기가 중요한 이유",
+                    author="요산 관리팀",
                     summary="하루 2L 수분 섭취로 요산 배출 돕기",
                     body=(
                         "충분한 수분 섭취는 요산을 소변으로 배출하는 데 도움을 줍니다. "
@@ -118,6 +132,7 @@ def _seed_content(db: Session) -> None:
                 ),
                 CardNews(
                     title="꾸준한 운동과 체중 관리",
+                    author="요산 관리팀",
                     summary="적정 체중 유지가 통풍 발작을 줄입니다",
                     body=(
                         "비만은 통풍 발작의 위험을 높입니다. 무리하지 않는 선에서 규칙적인 유산소 "

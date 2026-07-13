@@ -25,7 +25,9 @@ from app.schemas.survey import (
 router = APIRouter(prefix="/surveys", tags=["surveys"])
 
 
-def _auto_complete_mileage(db: Session, patient_id: int, check_date: date) -> None:
+def _auto_complete_mileage(
+    db: Session, patient_id: int, check_date: date, submission_id: int
+) -> None:
     """설문 제출 시 이번 달 마일리지 미션(다음 미완료 월)을 자동 완료 처리.
 
     한 달에 1회만 진행하는 미션이므로, 같은 달에 이미 제출 이력이 있으면
@@ -63,6 +65,7 @@ def _auto_complete_mileage(db: Session, patient_id: int, check_date: date) -> No
                     patient_id=patient_id,
                     month_index=m,
                     note="설문 제출 자동 완료",
+                    survey_submission_id=submission_id,
                 )
             )
             db.commit()
@@ -162,8 +165,8 @@ def submit(
     db.commit()
     db.refresh(submission)
 
-    # 설문 제출 → 이번 달 마일리지 미션 자동 완료(체크)
-    _auto_complete_mileage(db, user.id, submission.check_date)
+    # 설문 제출 → 이번 달 마일리지 미션 자동 완료(체크). 해당 제출과 연결한다.
+    _auto_complete_mileage(db, user.id, submission.check_date, submission.id)
 
     return SurveySubmissionOut.model_validate(submission)
 
@@ -183,6 +186,26 @@ def my_submissions(
         .all()
     )
     return [SurveySubmissionOut.model_validate(r) for r in rows]
+
+
+@router.get("/submission/{submission_id}", response_model=SurveySubmissionOut)
+def get_submission(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> SurveySubmissionOut:
+    """단일 설문 제출 조회. 환자는 본인 것만, 관리자는 전체 열람 가능."""
+    row = (
+        db.query(SurveySubmission)
+        .options(joinedload(SurveySubmission.answers))
+        .filter(SurveySubmission.id == submission_id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="설문 제출을 찾을 수 없습니다.")
+    if user.role == UserRole.PATIENT and row.patient_id != user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+    return SurveySubmissionOut.model_validate(row)
 
 
 @router.get("/patient/{patient_id}", response_model=List[SurveySubmissionOut])

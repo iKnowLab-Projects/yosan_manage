@@ -22,6 +22,7 @@ out/
 .expo-shared/
 dist/
 build/
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -30,6 +31,9 @@ build/
 # DB / data
 *.sqlite3
 yosan_pgdata/
+
+# 업로드된 이미지 (런타임 생성물 — 커밋 금지)
+backend/uploads/
 
 # Firebase / FCM 비밀 키 (절대 커밋 금지)
 mobile/google-services.json
