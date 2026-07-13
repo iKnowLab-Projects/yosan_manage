@@ -11,10 +11,16 @@ import {
   Text,
   View,
 } from "react-native";
-import { api, MileageMonth, MileageSummary } from "@/lib/api";
+import { api, MileageMonth, MileageSummary, SurveySubmission } from "@/lib/api";
 
 const CYCLE = 6;
 const ADMIN_PHONE = "010-XXXX-XXXX";
+
+// 현재 달(YYYY-MM) 키 — 설문은 한 달에 1회만 제출 가능
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export default function MileageScreen() {
   const router = useRouter();
@@ -22,13 +28,22 @@ export default function MileageScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cycleIdx, setCycleIdx] = useState(0);
+  const [submittedThisMonth, setSubmittedThisMonth] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api<MileageSummary>("/api/v1/mileage/me");
+      const [data, surveys] = await Promise.all([
+        api<MileageSummary>("/api/v1/mileage/me"),
+        api<SurveySubmission[]>("/api/v1/surveys/me").catch(() => []),
+      ]);
       setSummary(data);
+      setSubmittedThisMonth(
+        surveys.some(
+          (s) => String(s.check_date).slice(0, 7) === currentMonthKey(),
+        ),
+      );
       const firstIncomplete = data.months.find((m) => !m.completed);
       if (firstIncomplete) {
         setCycleIdx(Math.floor((firstIncomplete.month_index - 1) / CYCLE));
@@ -107,12 +122,21 @@ export default function MileageScreen() {
         },
         {
           text: "설문 작성",
-          onPress: () => router.push("/(app)/survey"),
+          onPress: () => {
+            if (submittedThisMonth) {
+              Alert.alert(
+                "설문 완료",
+                "이번 달은 이미 설문 조사를 완료하였습니다.\n다음 달에 다시 작성해 주세요.",
+              );
+              return;
+            }
+            router.push("/(app)/survey");
+          },
         },
         { text: "취소", style: "cancel" },
       ],
     );
-  }, [router]);
+  }, [router, submittedThisMonth]);
 
   if (loading && !summary) {
     return (
