@@ -30,6 +30,7 @@ class CardNews(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
+    author: Mapped[str | None] = mapped_column(String(100))  # 게시자
     summary: Mapped[str | None] = mapped_column(String(300))
     body: Mapped[str | None] = mapped_column(Text)
     image_key: Mapped[str] = mapped_column(String(300))  # 대표(썸네일) 이미지

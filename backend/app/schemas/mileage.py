@@ -11,6 +11,7 @@ class MileageMonth(BaseModel):
     completed: bool
     completed_at: Optional[datetime] = None
     note: Optional[str] = None
+    survey_submission_id: Optional[int] = None
 
 
 class MileageSummary(BaseModel):

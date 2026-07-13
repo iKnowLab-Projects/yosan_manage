@@ -7,6 +7,7 @@ from app.models.survey import SurveySubmission, SurveyAnswer
 from app.models.mileage import MileageCompletion
 from app.models.password_reset import PasswordResetRequest
 from app.models.content import Announcement, CardNews
+from app.models.inbody import InBodyResult
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "PasswordResetRequest",
     "Announcement",
     "CardNews",
+    "InBodyResult",
 ]

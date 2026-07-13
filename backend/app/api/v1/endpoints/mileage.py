@@ -51,6 +51,7 @@ def _build_summary(db: Session, patient_id: int) -> MileageSummary:
                 completed=rec is not None,
                 completed_at=rec.completed_at if rec else None,
                 note=rec.note if rec else None,
+                survey_submission_id=rec.survey_submission_id if rec else None,
             )
         )
 

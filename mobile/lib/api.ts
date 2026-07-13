@@ -37,6 +37,14 @@ export class ApiError extends Error {
   }
 }
 
+// 401(만료/무효 토큰) 발생 시 앱 전역에서 로그인 화면으로 보내기 위한 훅.
+// 루트 레이아웃에서 등록한다.
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null) {
+  unauthorizedHandler = fn;
+}
+
 export async function api<T>(
   path: string,
   init: RequestInit = {},
@@ -59,6 +67,11 @@ export async function api<T>(
     );
   }
   if (!res.ok) {
+    // 토큰 만료/무효 → 세션 정리 후 로그인으로 유도 (로그인 요청 자체는 제외)
+    if (res.status === 401 && !path.includes("/auth/login")) {
+      await clearSession();
+      unauthorizedHandler?.();
+    }
     let detail = res.statusText;
     try {
       const body = await res.json();
@@ -154,6 +167,7 @@ export type MileageMonth = {
   completed: boolean;
   completed_at?: string | null;
   note?: string | null;
+  survey_submission_id?: number | null;
 };
 
 export type MileageSummary = {
@@ -179,6 +193,7 @@ export type Announcement = {
 export type CardNews = {
   id: number;
   title: string;
+  author?: string | null;
   summary?: string | null;
   body?: string | null;
   image_key: string;
@@ -186,6 +201,24 @@ export type CardNews = {
   link_url?: string | null;
   display_order: number;
   is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InBodyResult = {
+  id: number;
+  patient_id: number;
+  measured_date: string;
+  weight_kg?: number | null;
+  skeletal_muscle_mass?: number | null;
+  body_fat_mass?: number | null;
+  bmi?: number | null;
+  percent_body_fat?: number | null;
+  basal_metabolic_rate?: number | null;
+  total_body_water?: number | null;
+  inbody_score?: number | null;
+  image_key?: string | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -32,6 +32,10 @@ class MileageCompletion(Base):
     )
     month_index: Mapped[int] = mapped_column(Integer)  # 1..24
     note: Mapped[str | None] = mapped_column(String(200))
+    # 설문 제출로 자동 완료된 경우 해당 제출과 연결 (앱 마일리지에서 설문 열람용)
+    survey_submission_id: Mapped[int | None] = mapped_column(
+        ForeignKey("survey_submissions.id", ondelete="SET NULL"), nullable=True
+    )
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

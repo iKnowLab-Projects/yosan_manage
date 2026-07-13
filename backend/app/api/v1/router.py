@@ -4,11 +4,13 @@ from app.api.v1.endpoints import (
     auth,
     board,
     cardnews,
+    inbody,
     mileage,
     notifications,
     patients,
     reports,
     surveys,
+    uploads,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -20,3 +22,5 @@ api_router.include_router(surveys.router)
 api_router.include_router(mileage.router)
 api_router.include_router(board.router)
 api_router.include_router(cardnews.router)
+api_router.include_router(inbody.router)
+api_router.include_router(uploads.router)

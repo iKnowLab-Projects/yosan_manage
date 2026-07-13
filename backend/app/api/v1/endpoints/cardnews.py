@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.content import CardNews
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.content import CardNewsIn, CardNewsOut
 
 router = APIRouter(prefix="/cardnews", tags=["cardnews"])
@@ -17,12 +17,18 @@ def list_cardnews(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     limit: int = Query(20, ge=1, le=100),
+    include_unpublished: bool = Query(False),
 ) -> List[CardNewsOut]:
-    """카드뉴스 목록. display_order 오름차순, 최신순."""
+    """카드뉴스 목록. display_order 오름차순, 최신순.
+
+    include_unpublished=true 는 관리자에게만 적용되어 미게시 항목까지 포함한다
+    (관리자 웹의 카드뉴스 관리 화면용). 그 외에는 항상 게시된 항목만 반환.
+    """
+    q = db.query(CardNews)
+    if not (include_unpublished and user.role == UserRole.ADMIN):
+        q = q.filter(CardNews.is_published == True)  # noqa: E712
     rows = (
-        db.query(CardNews)
-        .filter(CardNews.is_published == True)  # noqa: E712
-        .order_by(CardNews.display_order.asc(), CardNews.created_at.desc())
+        q.order_by(CardNews.display_order.asc(), CardNews.created_at.desc())
         .limit(limit)
         .all()
     )
@@ -36,7 +42,10 @@ def get_cardnews(
     user: User = Depends(get_current_user),
 ) -> CardNewsOut:
     row = db.get(CardNews, card_id)
-    if not row or not row.is_published:
+    if not row:
+        raise HTTPException(status_code=404, detail="카드뉴스를 찾을 수 없습니다.")
+    # 미게시 항목은 관리자만 조회 가능 (편집 화면용)
+    if not row.is_published and user.role != UserRole.ADMIN:
         raise HTTPException(status_code=404, detail="카드뉴스를 찾을 수 없습니다.")
     return CardNewsOut.model_validate(row)
 

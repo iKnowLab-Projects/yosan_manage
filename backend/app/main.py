@@ -2,7 +2,9 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+from app.api.v1.endpoints.uploads import UPLOAD_DIR
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.init_db import init_db
@@ -20,6 +22,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+# 업로드된 이미지 정적 서빙 (/uploads/<파일명>)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 @app.on_event("startup")
