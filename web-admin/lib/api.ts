@@ -61,6 +61,42 @@ export async function api<T>(
   return (await res.json()) as T;
 }
 
+// 이미지 등 파일 업로드 (multipart). 성공 시 { url, key } 반환.
+export async function uploadFile(
+  file: File
+): Promise<{ url: string; key: string }> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await fetch(`${API_BASE}/api/v1/uploads`, {
+    method: "POST",
+    headers,
+    body: fd,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? detail;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(detail, res.status);
+  }
+  return (await res.json()) as { url: string; key: string };
+}
+
+// 업로드 상대경로(/uploads/..) 또는 외부 URL을 표시용 절대 URL로 변환
+export function assetUrl(key?: string | null): string {
+  if (!key) return "";
+  if (/^https?:\/\//.test(key)) return key;
+  if (key.startsWith("/")) return `${API_BASE}${key}`;
+  return key;
+}
+
 export type PatientListItem = {
   id: number;
   email: string;
@@ -106,6 +142,7 @@ export type MileageMonth = {
   completed: boolean;
   completed_at?: string | null;
   note?: string | null;
+  survey_submission_id?: number | null;
 };
 
 export type MileageSummary = {
@@ -148,6 +185,51 @@ export type DailyReport = {
   medication_taken?: boolean | null;
   notes?: string | null;
   meals: MealEntry[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type CardNews = {
+  id: number;
+  title: string;
+  author?: string | null;
+  summary?: string | null;
+  body?: string | null;
+  image_key: string;
+  images: string[];
+  link_url?: string | null;
+  display_order: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CardNewsIn = {
+  title: string;
+  author?: string | null;
+  summary?: string | null;
+  body?: string | null;
+  image_key: string;
+  images: string[];
+  link_url?: string | null;
+  display_order: number;
+  is_published: boolean;
+};
+
+export type InBodyResult = {
+  id: number;
+  patient_id: number;
+  measured_date: string;
+  weight_kg?: number | null;
+  skeletal_muscle_mass?: number | null;
+  body_fat_mass?: number | null;
+  bmi?: number | null;
+  percent_body_fat?: number | null;
+  basal_metabolic_rate?: number | null;
+  total_body_water?: number | null;
+  inbody_score?: number | null;
+  image_key?: string | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 };
