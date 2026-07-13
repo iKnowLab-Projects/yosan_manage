@@ -28,7 +28,9 @@ export default function MileageScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cycleIdx, setCycleIdx] = useState(0);
-  const [submittedThisMonth, setSubmittedThisMonth] = useState(false);
+  const [thisMonthSubmissionId, setThisMonthSubmissionId] = useState<
+    number | null
+  >(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,11 +41,10 @@ export default function MileageScreen() {
         api<SurveySubmission[]>("/api/v1/surveys/me").catch(() => []),
       ]);
       setSummary(data);
-      setSubmittedThisMonth(
-        surveys.some(
-          (s) => String(s.check_date).slice(0, 7) === currentMonthKey(),
-        ),
+      const thisMonth = surveys.find(
+        (s) => String(s.check_date).slice(0, 7) === currentMonthKey(),
       );
+      setThisMonthSubmissionId(thisMonth ? thisMonth.id : null);
       const firstIncomplete = data.months.find((m) => !m.completed);
       if (firstIncomplete) {
         setCycleIdx(Math.floor((firstIncomplete.month_index - 1) / CYCLE));
@@ -123,10 +124,21 @@ export default function MileageScreen() {
         {
           text: "설문 작성",
           onPress: () => {
-            if (submittedThisMonth) {
+            if (thisMonthSubmissionId != null) {
               Alert.alert(
                 "설문 완료",
-                "이번 달은 이미 설문 조사를 완료하였습니다.\n다음 달에 다시 작성해 주세요.",
+                "이번 달은 이미 설문 조사를 완료하였습니다.\n제출한 설문을 확인하시겠어요?",
+                [
+                  {
+                    text: "제출한 설문 보기",
+                    onPress: () =>
+                      router.push({
+                        pathname: "/(app)/survey-view",
+                        params: { id: String(thisMonthSubmissionId) },
+                      }),
+                  },
+                  { text: "닫기", style: "cancel" },
+                ],
               );
               return;
             }
@@ -136,7 +148,7 @@ export default function MileageScreen() {
         { text: "취소", style: "cancel" },
       ],
     );
-  }, [router, submittedThisMonth]);
+  }, [router, thisMonthSubmissionId]);
 
   if (loading && !summary) {
     return (

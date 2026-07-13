@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -39,6 +40,7 @@ function nextMonthLabel(): string {
 }
 
 export default function SurveyScreen() {
+  const router = useRouter();
   const [template, setTemplate] = useState<SurveyTemplate | null>(null);
   const [history, setHistory] = useState<SurveySubmission[]>([]);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -192,12 +194,21 @@ export default function SurveyScreen() {
               .filter((h) => h.id !== thisMonthSubmission.id)
               .slice(0, 5)
               .map((h) => (
-                <View key={h.id} style={styles.histRow}>
+                <TouchableOpacity
+                  key={h.id}
+                  style={styles.histRow}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(app)/survey-view",
+                      params: { id: String(h.id) },
+                    })
+                  }
+                >
                   <Text style={styles.histDate}>{h.check_date}</Text>
                   <Text style={styles.histMeta}>
-                    {h.survey_group}군 · 응답 {h.answers.length}개
+                    {h.survey_group}군 · 응답 {h.answers.length}개 ›
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
           </View>
         )}
@@ -277,12 +288,21 @@ export default function SurveyScreen() {
         <View style={[styles.section, { marginTop: 8 }]}>
           <Text style={styles.sectionTitle}>이전 제출 이력</Text>
           {history.slice(0, 5).map((h) => (
-            <View key={h.id} style={styles.histRow}>
+            <TouchableOpacity
+              key={h.id}
+              style={styles.histRow}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/survey-view",
+                  params: { id: String(h.id) },
+                })
+              }
+            >
               <Text style={styles.histDate}>{h.check_date}</Text>
               <Text style={styles.histMeta}>
-                {h.survey_group}군 · 응답 {h.answers.length}개
+                {h.survey_group}군 · 응답 {h.answers.length}개 ›
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
