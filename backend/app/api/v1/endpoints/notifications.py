@@ -70,7 +70,7 @@ def send_notification(
             payload.body,
             data={"category": payload.category, "notification_id": "pending"},
         )
-        notif.delivered = success > 0 or not tokens_by_user.get(r.id)
+        notif.delivered = success > 0
         db.add(notif)
         saved.append(notif)
 
