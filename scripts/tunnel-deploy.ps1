@@ -1,4 +1,4 @@
-<#
+﻿<#
   Cloudflare 퀵 터널 자동화 + mobile/app.json apiBase 갱신 + eas update(OTA)  [Windows]
 
   동작:
