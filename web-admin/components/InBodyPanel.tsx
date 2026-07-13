@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { api, assetUrl, InBodyResult, uploadFile } from "@/lib/api";
+import InBodyTrend from "@/components/InBodyTrend";
 
 const inputCls =
   "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500";
@@ -247,6 +248,19 @@ export default function InBodyPanel({ patientId }: { patientId: number }) {
             </button>
           </div>
         </form>
+      )}
+
+      {/* 추이 그래프 + 드래그로 날짜 선택 상세 */}
+      {items.length > 0 && (
+        <div className="mb-6">
+          <InBodyTrend items={items} />
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <h3 className="mb-3 text-sm font-semibold text-slate-600">
+          측정 이력 (편집·삭제)
+        </h3>
       )}
 
       {items.length === 0 ? (

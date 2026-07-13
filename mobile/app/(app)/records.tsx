@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -61,6 +61,8 @@ export default function RecordsScreen() {
   const [items, setItems] = useState<InBodyResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // 그래프에서 드래그로 선택한 날짜(과거→현재 chrono 배열의 인덱스)
+  const [selectedIdx, setSelectedIdx] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -80,15 +82,22 @@ export default function RecordsScreen() {
 
   // 최근 10회를 과거→현재 순으로 (그래프는 왼쪽이 과거)
   const chrono = [...items].slice(0, 10).reverse();
+
+  // 데이터가 바뀌면 가장 최근(오른쪽 끝) 측정을 기본 선택
+  useEffect(() => {
+    const len = Math.min(10, items.length);
+    setSelectedIdx(len > 0 ? len - 1 : 0);
+  }, [items]);
+
   const mkData = (key: keyof InBodyResult): ChartPoint[] =>
     chrono.map((r) => ({
       label: String(r.measured_date).slice(5).replace("-", "/"), // MM/DD
       value: (r[key] as number | null | undefined) ?? null,
     }));
-  const latestVal = (key: keyof InBodyResult): number | null => {
-    const found = items.find((r) => (r[key] as number | null | undefined) != null);
-    return found ? (found[key] as number) : null;
-  };
+
+  const selIdx = Math.max(0, Math.min(selectedIdx, chrono.length - 1));
+  const selected = chrono[selIdx];
+  const selectedPrev = selIdx > 0 ? chrono[selIdx - 1] : undefined;
 
   if (loading) {
     return (
@@ -119,23 +128,6 @@ export default function RecordsScreen() {
         </Text>
       </View>
 
-      {/* ===== 추이 그래프 (체중·체지방률·BMI) ===== */}
-      {items.length >= 2 && (
-        <View style={styles.trendSection}>
-          <Text style={styles.trendHeading}>추이 (최근 {chrono.length}회)</Text>
-          {TREND_METRICS.map((m) => (
-            <MetricChart
-              key={m.key as string}
-              title={m.title}
-              unit={m.unit}
-              color={m.color}
-              latest={latestVal(m.key)}
-              data={mkData(m.key)}
-            />
-          ))}
-        </View>
-      )}
-
       {items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🧍</Text>
@@ -145,66 +137,37 @@ export default function RecordsScreen() {
           </Text>
         </View>
       ) : (
-        items.map((r, idx) => {
-          const prev = items[idx + 1]; // 목록은 최신순이므로 다음 항목이 이전 측정
-          const isLatest = idx === 0;
-          return (
-            <View
-              key={r.id}
-              style={[styles.card, isLatest && styles.cardLatest]}
-            >
-              <View style={styles.cardHead}>
-                <Text style={styles.date}>{r.measured_date}</Text>
-                {isLatest && (
-                  <View style={styles.latestBadge}>
-                    <Text style={styles.latestBadgeText}>최근</Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.grid}>
-                {METRICS.map((m) => {
-                  const val = r[m.key] as number | null | undefined;
-                  const d = isLatest
-                    ? delta(val, prev?.[m.key] as number | null | undefined)
-                    : null;
-                  return (
-                    <View key={m.key as string} style={styles.metric}>
-                      <Text style={styles.metricLabel}>{m.label}</Text>
-                      <Text style={styles.metricValue}>
-                        {fmt(val)}
-                        {val != null && m.unit ? (
-                          <Text style={styles.metricUnit}> {m.unit}</Text>
-                        ) : null}
-                      </Text>
-                      {d && (
-                        <Text
-                          style={[
-                            styles.metricDelta,
-                            d.startsWith("▲") && styles.deltaUp,
-                            d.startsWith("▼") && styles.deltaDown,
-                          ]}
-                        >
-                          {d} (직전 대비)
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-
-              {!!r.image_key && (
-                <Image
-                  source={resolveImage(r.image_key)}
-                  style={styles.sheet}
-                  resizeMode="contain"
+        <>
+          {/* ===== 추이 그래프 (체중·체지방률·BMI) — 드래그로 날짜 선택 ===== */}
+          {items.length >= 2 && (
+            <View style={styles.trendSection}>
+              <Text style={styles.trendHeading}>추이 (최근 {chrono.length}회)</Text>
+              {TREND_METRICS.map((m) => (
+                <MetricChart
+                  key={m.key as string}
+                  title={m.title}
+                  unit={m.unit}
+                  color={m.color}
+                  data={mkData(m.key)}
+                  selectedIndex={selIdx}
+                  onSelect={setSelectedIdx}
                 />
-              )}
-
-              {!!r.note && <Text style={styles.note}>{r.note}</Text>}
+              ))}
+              <Text style={styles.dragHint}>
+                그래프를 좌우로 드래그하면 해당 날짜의 상세가 아래에 표시됩니다.
+              </Text>
             </View>
-          );
-        })
+          )}
+
+          {/* ===== 선택된 날짜의 세부 수치 ===== */}
+          {selected && (
+            <DetailPanel
+              record={selected}
+              prev={selectedPrev}
+              isLatest={selIdx === chrono.length - 1}
+            />
+          )}
+        </>
       )}
 
       <View style={{ height: 24 }} />
@@ -216,26 +179,93 @@ function MetricChart({
   title,
   unit,
   color,
-  latest,
   data,
+  selectedIndex,
+  onSelect,
 }: {
   title: string;
   unit: string;
   color: string;
-  latest: number | null;
   data: ChartPoint[];
+  selectedIndex: number;
+  onSelect: (index: number) => void;
 }) {
+  const selVal = data[selectedIndex]?.value ?? null;
   return (
     <View style={styles.chartCard}>
       <View style={styles.chartHead}>
         <View style={[styles.chartDot, { backgroundColor: color }]} />
         <Text style={styles.chartTitle}>{title}</Text>
         <Text style={styles.chartLatest}>
-          {latest != null ? `${latest}${unit ? ` ${unit}` : ""}` : "—"}
-          <Text style={styles.chartLatestSub}>  최근</Text>
+          {selVal != null ? `${selVal}${unit ? ` ${unit}` : ""}` : "—"}
         </Text>
       </View>
-      <LineChart data={data} color={color} />
+      <LineChart
+        data={data}
+        color={color}
+        selectedIndex={selectedIndex}
+        onSelect={onSelect}
+      />
+    </View>
+  );
+}
+
+function DetailPanel({
+  record,
+  prev,
+  isLatest,
+}: {
+  record: InBodyResult;
+  prev?: InBodyResult;
+  isLatest: boolean;
+}) {
+  return (
+    <View style={[styles.card, styles.cardLatest]}>
+      <View style={styles.cardHead}>
+        <Text style={styles.date}>{record.measured_date}</Text>
+        <View style={styles.latestBadge}>
+          <Text style={styles.latestBadgeText}>{isLatest ? "최근" : "선택"}</Text>
+        </View>
+      </View>
+
+      <View style={styles.grid}>
+        {METRICS.map((m) => {
+          const val = record[m.key] as number | null | undefined;
+          const d = delta(val, prev?.[m.key] as number | null | undefined);
+          return (
+            <View key={m.key as string} style={styles.metric}>
+              <Text style={styles.metricLabel}>{m.label}</Text>
+              <Text style={styles.metricValue}>
+                {fmt(val)}
+                {val != null && m.unit ? (
+                  <Text style={styles.metricUnit}> {m.unit}</Text>
+                ) : null}
+              </Text>
+              {d && (
+                <Text
+                  style={[
+                    styles.metricDelta,
+                    d.startsWith("▲") && styles.deltaUp,
+                    d.startsWith("▼") && styles.deltaDown,
+                  ]}
+                >
+                  {d} (직전 대비)
+                </Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {!!record.image_key && (
+        <Image
+          source={resolveImage(record.image_key)}
+          style={styles.sheet}
+          resizeMode="contain"
+        />
+      )}
+
+      {!!record.note && <Text style={styles.note}>{record.note}</Text>}
     </View>
   );
 }
@@ -268,6 +298,13 @@ const styles = StyleSheet.create({
   chartTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b", flex: 1 },
   chartLatest: { fontSize: 15, fontWeight: "800", color: "#0f172a" },
   chartLatestSub: { fontSize: 11, fontWeight: "600", color: "#94a3b8" },
+  dragHint: {
+    fontSize: 12,
+    color: "#94a3b8",
+    textAlign: "center",
+    marginTop: 2,
+    marginBottom: 4,
+  },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 

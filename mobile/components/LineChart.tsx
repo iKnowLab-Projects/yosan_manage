@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  LayoutChangeEvent,
+  PanResponder,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export type ChartPoint = { label: string; value: number | null };
 
@@ -7,17 +13,22 @@ export type ChartPoint = { label: string; value: number | null };
  * 네이티브 의존성 없이(순수 React Native View) 그리는 경량 꺾은선 그래프.
  * - 선분은 두 점 사이 거리/각도로 회전한 얇은 View 로 표현 (react-native-svg 불필요 → OTA 반영 가능)
  * - value 가 null 인 지점은 건너뛰고 가용한 점끼리 연결
+ * - onSelect 를 주면 그래프 위를 드래그/탭 하여 날짜(인덱스)를 선택할 수 있다.
  */
 export default function LineChart({
   data,
   color = "#2563eb",
   height = 170,
   decimals = 1,
+  selectedIndex = null,
+  onSelect,
 }: {
   data: ChartPoint[];
   color?: string;
   height?: number;
   decimals?: number;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }) {
   const [w, setW] = useState(0);
 
@@ -42,6 +53,28 @@ export default function LineChart({
   const n = data.length;
   const xAt = (i: number) => padL + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yAt = (v: number) => padT + (1 - (v - lo) / range) * plotH;
+
+  // 드래그/탭 → 가장 가까운 인덱스 선택
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !!onSelect,
+        onMoveShouldSetPanResponder: () => !!onSelect,
+        onPanResponderGrant: (e) => selectAt(e.nativeEvent.locationX),
+        onPanResponderMove: (e) => selectAt(e.nativeEvent.locationX),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onSelect, w, n],
+  );
+
+  function selectAt(x: number) {
+    if (!onSelect) return;
+    if (n <= 1) return onSelect(0);
+    const ratio = (x - padL) / (plotW || 1);
+    let idx = Math.round(ratio * (n - 1));
+    idx = Math.max(0, Math.min(n - 1, idx));
+    onSelect(idx);
+  }
 
   const pts = data
     .map((d, i) =>
@@ -73,13 +106,19 @@ export default function LineChart({
   }
 
   const fmt = (v: number) => v.toFixed(decimals);
-  // 라벨이 너무 촘촘하면 솎아낸다 (점이 6개 초과면 하나 걸러 표시 + 마지막은 항상)
   const showLabel = (i: number) => n <= 6 || i % 2 === 0 || i === n - 1;
+
+  const sel =
+    selectedIndex != null && selectedIndex >= 0 && selectedIndex < n
+      ? selectedIndex
+      : null;
+  const selVal = sel != null ? data[sel].value : null;
 
   return (
     <View
       style={{ height }}
       onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
+      {...(onSelect ? pan.panHandlers : {})}
     >
       {w > 0 && hasData && (
         <>
@@ -92,6 +131,16 @@ export default function LineChart({
           <Text style={[styles.yLabel, { top: yAt(min) - 7, width: padL - 6 }]}>
             {fmt(min)}
           </Text>
+
+          {/* 선택 세로선 */}
+          {sel != null && (
+            <View
+              style={[
+                styles.selLine,
+                { left: xAt(sel), top: padT, height: plotH },
+              ]}
+            />
+          )}
 
           {/* 선분 */}
           {segments.map((s) => (
@@ -128,7 +177,11 @@ export default function LineChart({
               />
               {showLabel(p.i) && (
                 <Text
-                  style={[styles.xLabel, { left: p.x - 20, top: height - padB + 6 }]}
+                  style={[
+                    styles.xLabel,
+                    { left: p.x - 20, top: height - padB + 6 },
+                    p.i === sel && { color, fontWeight: "700" },
+                  ]}
                   numberOfLines={1}
                 >
                   {p.label}
@@ -136,6 +189,36 @@ export default function LineChart({
               )}
             </View>
           ))}
+
+          {/* 선택된 점 강조 + 값 말풍선 */}
+          {sel != null && selVal != null && (
+            <>
+              <View
+                style={{
+                  position: "absolute",
+                  left: xAt(sel) - 6,
+                  top: yAt(selVal) - 6,
+                  width: 12,
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: "#ffffff",
+                  borderWidth: 2.5,
+                  borderColor: color,
+                }}
+              />
+              <View
+                style={[
+                  styles.bubble,
+                  {
+                    left: Math.max(2, Math.min(w - 54, xAt(sel) - 26)),
+                    top: Math.max(0, yAt(selVal) - 26),
+                  },
+                ]}
+              >
+                <Text style={styles.bubbleText}>{fmt(selVal)}</Text>
+              </View>
+            </>
+          )}
         </>
       )}
       {w > 0 && !hasData && (
@@ -151,6 +234,12 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#eef2f7",
   },
+  selLine: {
+    position: "absolute",
+    width: 1.5,
+    backgroundColor: "#cbd5e1",
+    marginLeft: -0.75,
+  },
   yLabel: {
     position: "absolute",
     left: 0,
@@ -165,6 +254,16 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: "#94a3b8",
   },
+  bubble: {
+    position: "absolute",
+    minWidth: 40,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#0f172a",
+    alignItems: "center",
+  },
+  bubbleText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   empty: {
     textAlign: "center",
     marginTop: 40,
