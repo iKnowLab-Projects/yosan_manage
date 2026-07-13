@@ -225,6 +225,42 @@ npx expo start --dev-client
 >   New-NetFirewallRule -DisplayName "Yosan API 26610" -Direction Inbound -LocalPort 26610 -Protocol TCP -Action Allow
 >   ```
 
+#### 개발용 백엔드 연결 — Cloudflare 임시 터널 + OTA(`eas update`)
+
+개발 단계에서는 공인 도메인 없이 **Cloudflare 퀵 터널**로 로컬 백엔드를 외부에 노출하고, 앱에는 **OTA(`eas update`)** 로 접속 주소만 갱신합니다(앱 재빌드 불필요). 단, **터널을 재실행하면 URL이 매번 바뀌므로** 아래 과정을 그때마다 반복합니다.
+
+```powershell
+# 1) 백엔드 실행 (포트 26610)
+cd backend
+docker compose up --build
+
+# 2) Cloudflare 퀵 터널 발급 (cloudflared 설치 필요)
+cloudflared tunnel --url http://localhost:26610
+#   → 출력된 https://xxxxx.trycloudflare.com 주소를 복사
+```
+
+3) `mobile/app.json` 의 `extra.apiBase` 를 발급받은 주소로 교체:
+```jsonc
+{
+  "expo": {
+    "extra": {
+      "apiBase": "https://xxxxx.trycloudflare.com"
+    }
+  }
+}
+```
+
+4) OTA로 반영 — 재빌드 없이 앱을 재시작하면 새 백엔드 주소로 접속:
+```powershell
+cd mobile
+eas update --branch preview --message "apiBase 갱신"
+```
+
+> ⚠️ 화면 코드·`apiBase` 등 **JS 변경만이면 `eas update` 로 충분**합니다. APK 재빌드는 아이콘/스플래시/네이티브 의존성이 바뀔 때만 필요합니다.
+> ⚠️ 배포용 APK는 `preview` 프로파일(=`preview` 채널)로 빌드하므로 OTA도 반드시 `--branch preview` 로 올려야 해당 기기에 반영됩니다.
+> ⚠️ `trycloudflare` 퀵 터널 URL은 재실행 시마다 바뀝니다. 고정 주소가 필요하면 named tunnel 또는 자체 도메인(운영 배포: [`DEPLOYMENT.md`](DEPLOYMENT.md))을 사용하세요.
+> 📎 백엔드가 이미지 업로드(`/uploads`)를 정적 서빙하므로, 앱에서 카드뉴스·InBody 이미지도 이 터널 주소를 통해 그대로 로드됩니다.
+
 자세한 빌드·서명·OTA 업데이트·문제 해결 가이드: [`mobile/BUILD.md`](mobile/BUILD.md)
 
 ## 푸시 알림 설정 (선택)
