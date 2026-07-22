@@ -104,7 +104,9 @@ export default function AppLayout() {
         options={{
           title: "정보",
           tabBarLabel: "정보",
-          tabBarIcon: ({ focused }) => <TabGlyph glyph="📰" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon source={tabIcons.info} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen

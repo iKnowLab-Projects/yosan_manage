@@ -8,6 +8,7 @@ export const tabIcons = {
   mileage: require("../image/milege2.png"),
   alarm: require("../image/alarm2.png"),
   home: require("../image/home2.png"),
+  info: require("../image/info.png"),
 } as const;
 
 // 카드뉴스 image_key → 번들 이미지 매핑 (샘플). 키가 없으면 URL로 간주.
