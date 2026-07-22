@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -9,6 +9,7 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,7 +22,11 @@ import { api, CardNews } from "@/lib/api";
 import { resolveCardImage } from "@/lib/images";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-const IMG_ZOOM = 2.5; // 더블탭 확대 배율
+const IMG_ZOOM = 2; // 더블탭 확대 배율
+// 확대 시 패닝(드래그) 가능한 최대 이동량 (화면 밖으로 벗어나지 않게 클램프)
+const MAX_TX = ((IMG_ZOOM - 1) / 2) * SCREEN_W;
+const MAX_TY = ((IMG_ZOOM - 1) / 2) * SCREEN_H;
+const clampT = (v: number, max: number) => Math.max(-max, Math.min(max, v));
 
 export default function CardNewsDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,8 +39,12 @@ export default function CardNewsDetail() {
   const [zoomStart, setZoomStart] = useState(0); // 뷰어를 열 때 시작 인덱스
   const [zoomIndex, setZoomIndex] = useState(0); // 뷰어에서 현재 보는 인덱스
   const zoomRef = useRef<ScrollView>(null);
-  // 더블탭 확대 상태
+  // 더블탭 확대 + 패닝 상태
   const imgScale = useRef(new Animated.Value(1)).current;
+  const imgTX = useRef(new Animated.Value(0)).current;
+  const imgTY = useRef(new Animated.Value(0)).current;
+  const baseTX = useRef(0);
+  const baseTY = useRef(0);
   const [imgZoomed, setImgZoomed] = useState(false);
   const lastTap = useRef(0);
 
@@ -70,9 +79,17 @@ export default function CardNewsDetail() {
     if (idx !== page) setPage(idx);
   };
 
-  const openZoom = (i: number) => {
+  const resetZoom = () => {
     imgScale.setValue(1);
+    imgTX.setValue(0);
+    imgTY.setValue(0);
+    baseTX.current = 0;
+    baseTY.current = 0;
     setImgZoomed(false);
+  };
+
+  const openZoom = (i: number) => {
+    resetZoom();
     setZoomStart(i);
     setZoomIndex(i);
     setZoomVisible(true);
@@ -82,20 +99,29 @@ export default function CardNewsDetail() {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
     if (idx !== zoomIndex) {
       setZoomIndex(idx);
-      // 다른 이미지로 넘어가면 확대 해제
-      imgScale.setValue(1);
-      setImgZoomed(false);
+      resetZoom(); // 다른 이미지로 넘어가면 확대/이동 해제
     }
   };
 
   const toggleImgZoom = () => {
-    const to = imgZoomed ? 1 : IMG_ZOOM;
-    setImgZoomed(!imgZoomed);
-    Animated.timing(imgScale, {
-      toValue: to,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
+    if (imgZoomed) {
+      // 원래 비율로 복귀 (이동도 0으로)
+      baseTX.current = 0;
+      baseTY.current = 0;
+      setImgZoomed(false);
+      Animated.parallel([
+        Animated.timing(imgScale, { toValue: 1, duration: 180, useNativeDriver: false }),
+        Animated.timing(imgTX, { toValue: 0, duration: 180, useNativeDriver: false }),
+        Animated.timing(imgTY, { toValue: 0, duration: 180, useNativeDriver: false }),
+      ]).start();
+    } else {
+      setImgZoomed(true);
+      Animated.timing(imgScale, {
+        toValue: IMG_ZOOM,
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
+    }
   };
 
   // 더블탭 감지 → 확대/복귀 토글
@@ -108,6 +134,26 @@ export default function CardNewsDetail() {
       lastTap.current = now;
     }
   };
+
+  // 확대 중일 때만 드래그로 패닝 (미확대 시엔 좌우 페이징/탭이 동작하도록 양보)
+  const imgPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_e, g) =>
+          imgZoomed && (Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3),
+        onPanResponderMove: (_e, g) => {
+          imgTX.setValue(clampT(baseTX.current + g.dx, MAX_TX));
+          imgTY.setValue(clampT(baseTY.current + g.dy, MAX_TY));
+        },
+        onPanResponderRelease: (_e, g) => {
+          baseTX.current = clampT(baseTX.current + g.dx, MAX_TX);
+          baseTY.current = clampT(baseTY.current + g.dy, MAX_TY);
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [imgZoomed],
+  );
 
   return (
     <ScrollView
@@ -200,20 +246,28 @@ export default function CardNewsDetail() {
               style={StyleSheet.absoluteFill}
             >
               {gallery.map((key, i) => (
-                <Pressable
+                <View
                   key={`zoom-${i}`}
                   style={styles.zoomPage}
-                  onPress={onImgTap}
+                  {...imgPan.panHandlers}
                 >
-                  <Animated.Image
-                    source={resolveCardImage(key)}
-                    style={[
-                      styles.zoomImage,
-                      { transform: [{ scale: imgScale }] },
-                    ]}
-                    resizeMode="contain"
-                  />
-                </Pressable>
+                  <Pressable onPress={onImgTap} style={styles.zoomImage}>
+                    <Animated.Image
+                      source={resolveCardImage(key)}
+                      style={[
+                        styles.zoomImage,
+                        {
+                          transform: [
+                            { translateX: imgTX },
+                            { translateY: imgTY },
+                            { scale: imgScale },
+                          ],
+                        },
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                </View>
               ))}
             </ScrollView>
           )}
