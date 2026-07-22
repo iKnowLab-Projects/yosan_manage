@@ -23,10 +23,19 @@ import { resolveCardImage } from "@/lib/images";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const IMG_ZOOM = 2; // 더블탭 확대 배율
-// 확대 시 패닝(드래그) 가능한 최대 이동량 (화면 밖으로 벗어나지 않게 클램프)
-const MAX_TX = ((IMG_ZOOM - 1) / 2) * SCREEN_W;
-const MAX_TY = ((IMG_ZOOM - 1) / 2) * SCREEN_H;
-const clampT = (v: number, max: number) => Math.max(-max, Math.min(max, v));
+const MAX_ZOOM = 4; // 핀치(스프레드) 최대 배율
+
+const clampNum = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
+// 현재 배율에서 이미지가 화면 밖으로 벗어나지 않는 최대 이동량
+const maxPanX = (scale: number) => ((scale - 1) / 2) * SCREEN_W;
+const maxPanY = (scale: number) => ((scale - 1) / 2) * SCREEN_H;
+// 두 손가락 사이 거리 (핀치 감지)
+const touchDistance = (touches: any[]) =>
+  Math.hypot(
+    touches[0].pageX - touches[1].pageX,
+    touches[0].pageY - touches[1].pageY,
+  );
 
 export default function CardNewsDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,12 +48,18 @@ export default function CardNewsDetail() {
   const [zoomStart, setZoomStart] = useState(0); // 뷰어를 열 때 시작 인덱스
   const [zoomIndex, setZoomIndex] = useState(0); // 뷰어에서 현재 보는 인덱스
   const zoomRef = useRef<ScrollView>(null);
-  // 더블탭 확대 + 패닝 상태
+  // 확대(더블탭·핀치) + 패닝 상태
   const imgScale = useRef(new Animated.Value(1)).current;
   const imgTX = useRef(new Animated.Value(0)).current;
   const imgTY = useRef(new Animated.Value(0)).current;
-  const baseTX = useRef(0);
-  const baseTY = useRef(0);
+  const curScale = useRef(1); // 현재 배율(제스처 계산용 동기 값)
+  const curTX = useRef(0);
+  const curTY = useRef(0);
+  const lastDx = useRef(0); // 팬 증분 계산용
+  const lastDy = useRef(0);
+  const pinchRefDist = useRef(0); // 핀치 시작 시 손가락 거리
+  const pinchRefScale = useRef(1); // 핀치 시작 시 배율
+  const zoomedRef = useRef(false); // imgZoomed 미러 (중복 setState 방지)
   const [imgZoomed, setImgZoomed] = useState(false);
   const lastTap = useRef(0);
 
@@ -55,26 +70,93 @@ export default function CardNewsDetail() {
       .catch((e: any) => setError(e?.message ?? "조회 실패"));
   }, [id]);
 
-  // 확대 중일 때만 드래그로 패닝 (미확대 시엔 좌우 페이징/탭이 동작하도록 양보)
-  // 훅(useMemo)이므로 조기 return 앞에서 항상 호출되어야 한다.
-  const imgPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_e, g) =>
-          imgZoomed && (Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3),
-        onPanResponderMove: (_e, g) => {
-          imgTX.setValue(clampT(baseTX.current + g.dx, MAX_TX));
-          imgTY.setValue(clampT(baseTY.current + g.dy, MAX_TY));
-        },
-        onPanResponderRelease: (_e, g) => {
-          baseTX.current = clampT(baseTX.current + g.dx, MAX_TX);
-          baseTY.current = clampT(baseTY.current + g.dy, MAX_TY);
-        },
-      }),
+  // 핀치(스프레드) 확대/축소 + 확대 시 드래그 패닝. 순수 PanResponder 멀티터치(네이티브 의존성 X).
+  // 훅(useMemo)이라 조기 return 앞에 둔다. 헬퍼는 팩토리 내부에 두어 refs/stable setter만 캡처.
+  const imgPan = useMemo(() => {
+    const applyPan = () => {
+      const mx = maxPanX(curScale.current);
+      const my = maxPanY(curScale.current);
+      curTX.current = clampNum(curTX.current, -mx, mx);
+      curTY.current = clampNum(curTY.current, -my, my);
+      imgTX.setValue(curTX.current);
+      imgTY.setValue(curTY.current);
+    };
+    const setZoomed = (z: boolean) => {
+      if (zoomedRef.current !== z) {
+        zoomedRef.current = z;
+        setImgZoomed(z);
+      }
+    };
+    const finalize = () => {
+      pinchRefDist.current = 0;
+      if (curScale.current <= 1.02) {
+        curScale.current = 1;
+        curTX.current = 0;
+        curTY.current = 0;
+        Animated.parallel([
+          Animated.timing(imgScale, { toValue: 1, duration: 150, useNativeDriver: false }),
+          Animated.timing(imgTX, { toValue: 0, duration: 150, useNativeDriver: false }),
+          Animated.timing(imgTY, { toValue: 0, duration: 150, useNativeDriver: false }),
+        ]).start();
+        setZoomed(false);
+      } else {
+        setZoomed(true);
+      }
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (e, g) =>
+        e.nativeEvent.touches.length >= 2 ||
+        (curScale.current > 1.01 && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2)),
+      onPanResponderGrant: (_e, g) => {
+        lastDx.current = g.dx;
+        lastDy.current = g.dy;
+        pinchRefDist.current = 0;
+      },
+      onPanResponderMove: (e, g) => {
+        const touches = e.nativeEvent.touches;
+        if (touches.length >= 2) {
+          // 핀치: 손가락 거리 비율로 배율 조정
+          const d = touchDistance(touches);
+          if (pinchRefDist.current === 0) {
+            pinchRefDist.current = d || 1;
+            pinchRefScale.current = curScale.current;
+            return;
+          }
+          const ns = clampNum(
+            pinchRefScale.current * (d / pinchRefDist.current),
+            1,
+            MAX_ZOOM,
+          );
+          curScale.current = ns;
+          imgScale.setValue(ns);
+          applyPan();
+          setZoomed(ns > 1.01);
+        } else if (touches.length === 1) {
+          if (pinchRefDist.current !== 0) {
+            // 핀치 → 한 손가락 전환: 팬 기준 재설정
+            pinchRefDist.current = 0;
+            lastDx.current = g.dx;
+            lastDy.current = g.dy;
+          }
+          if (curScale.current > 1.01) {
+            // 팬(증분)
+            curTX.current += g.dx - lastDx.current;
+            curTY.current += g.dy - lastDy.current;
+            lastDx.current = g.dx;
+            lastDy.current = g.dy;
+            applyPan();
+          } else {
+            lastDx.current = g.dx;
+            lastDy.current = g.dy;
+          }
+        }
+      },
+      onPanResponderRelease: finalize,
+      onPanResponderTerminate: finalize,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [imgZoomed],
-  );
+  }, []);
 
   if (error) {
     return (
@@ -101,11 +183,16 @@ export default function CardNewsDetail() {
   };
 
   const resetZoom = () => {
+    curScale.current = 1;
+    curTX.current = 0;
+    curTY.current = 0;
+    pinchRefDist.current = 0;
+    lastDx.current = 0;
+    lastDy.current = 0;
     imgScale.setValue(1);
     imgTX.setValue(0);
     imgTY.setValue(0);
-    baseTX.current = 0;
-    baseTY.current = 0;
+    zoomedRef.current = false;
     setImgZoomed(false);
   };
 
@@ -125,10 +212,12 @@ export default function CardNewsDetail() {
   };
 
   const toggleImgZoom = () => {
-    if (imgZoomed) {
+    if (curScale.current > 1.01) {
       // 원래 비율로 복귀 (이동도 0으로)
-      baseTX.current = 0;
-      baseTY.current = 0;
+      curScale.current = 1;
+      curTX.current = 0;
+      curTY.current = 0;
+      zoomedRef.current = false;
       setImgZoomed(false);
       Animated.parallel([
         Animated.timing(imgScale, { toValue: 1, duration: 180, useNativeDriver: false }),
@@ -136,6 +225,8 @@ export default function CardNewsDetail() {
         Animated.timing(imgTY, { toValue: 0, duration: 180, useNativeDriver: false }),
       ]).start();
     } else {
+      curScale.current = IMG_ZOOM;
+      zoomedRef.current = true;
       setImgZoomed(true);
       Animated.timing(imgScale, {
         toValue: IMG_ZOOM,
