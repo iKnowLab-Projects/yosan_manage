@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   Image,
   Linking,
@@ -20,6 +21,7 @@ import { api, CardNews } from "@/lib/api";
 import { resolveCardImage } from "@/lib/images";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+const IMG_ZOOM = 2.5; // 더블탭 확대 배율
 
 export default function CardNewsDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +34,10 @@ export default function CardNewsDetail() {
   const [zoomStart, setZoomStart] = useState(0); // 뷰어를 열 때 시작 인덱스
   const [zoomIndex, setZoomIndex] = useState(0); // 뷰어에서 현재 보는 인덱스
   const zoomRef = useRef<ScrollView>(null);
+  // 더블탭 확대 상태
+  const imgScale = useRef(new Animated.Value(1)).current;
+  const [imgZoomed, setImgZoomed] = useState(false);
+  const lastTap = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -65,6 +71,8 @@ export default function CardNewsDetail() {
   };
 
   const openZoom = (i: number) => {
+    imgScale.setValue(1);
+    setImgZoomed(false);
     setZoomStart(i);
     setZoomIndex(i);
     setZoomVisible(true);
@@ -72,7 +80,33 @@ export default function CardNewsDetail() {
 
   const onZoomScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
-    if (idx !== zoomIndex) setZoomIndex(idx);
+    if (idx !== zoomIndex) {
+      setZoomIndex(idx);
+      // 다른 이미지로 넘어가면 확대 해제
+      imgScale.setValue(1);
+      setImgZoomed(false);
+    }
+  };
+
+  const toggleImgZoom = () => {
+    const to = imgZoomed ? 1 : IMG_ZOOM;
+    setImgZoomed(!imgZoomed);
+    Animated.timing(imgScale, {
+      toValue: to,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // 더블탭 감지 → 확대/복귀 토글
+  const onImgTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < 280) {
+      lastTap.current = 0;
+      toggleImgZoom();
+    } else {
+      lastTap.current = now;
+    }
   };
 
   return (
@@ -152,6 +186,7 @@ export default function CardNewsDetail() {
               ref={zoomRef}
               horizontal
               pagingEnabled
+              scrollEnabled={!imgZoomed}
               showsHorizontalScrollIndicator={false}
               contentOffset={{ x: zoomStart * SCREEN_W, y: 0 }}
               onLayout={() =>
@@ -165,13 +200,20 @@ export default function CardNewsDetail() {
               style={StyleSheet.absoluteFill}
             >
               {gallery.map((key, i) => (
-                <View key={`zoom-${i}`} style={styles.zoomPage}>
-                  <Image
+                <Pressable
+                  key={`zoom-${i}`}
+                  style={styles.zoomPage}
+                  onPress={onImgTap}
+                >
+                  <Animated.Image
                     source={resolveCardImage(key)}
-                    style={styles.zoomImage}
+                    style={[
+                      styles.zoomImage,
+                      { transform: [{ scale: imgScale }] },
+                    ]}
                     resizeMode="contain"
                   />
-                </View>
+                </Pressable>
               ))}
             </ScrollView>
           )}
