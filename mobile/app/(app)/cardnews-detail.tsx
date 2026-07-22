@@ -1,28 +1,37 @@
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   Image,
   Linking,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, CardNews } from "@/lib/api";
 import { resolveCardImage } from "@/lib/images";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 export default function CardNewsDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [item, setItem] = useState<CardNews | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  // 전체화면 이미지 뷰어
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomStart, setZoomStart] = useState(0); // 뷰어를 열 때 시작 인덱스
+  const [zoomIndex, setZoomIndex] = useState(0); // 뷰어에서 현재 보는 인덱스
+  const zoomRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -55,6 +64,17 @@ export default function CardNewsDetail() {
     if (idx !== page) setPage(idx);
   };
 
+  const openZoom = (i: number) => {
+    setZoomStart(i);
+    setZoomIndex(i);
+    setZoomVisible(true);
+  };
+
+  const onZoomScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    if (idx !== zoomIndex) setZoomIndex(idx);
+  };
+
   return (
     <ScrollView
       style={{ backgroundColor: "#f8fafc" }}
@@ -70,12 +90,13 @@ export default function CardNewsDetail() {
           scrollEventThrottle={16}
         >
           {gallery.map((key, i) => (
-            <Image
-              key={`${key}-${i}`}
-              source={resolveCardImage(key)}
-              style={{ width: SCREEN_W, height: 280, backgroundColor: "#f1f5f9" }}
-              resizeMode="cover"
-            />
+            <Pressable key={`${key}-${i}`} onPress={() => openZoom(i)}>
+              <Image
+                source={resolveCardImage(key)}
+                style={{ width: SCREEN_W, height: 280, backgroundColor: "#f1f5f9" }}
+                resizeMode="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
 
@@ -117,6 +138,61 @@ export default function CardNewsDetail() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ===== 전체화면 이미지 뷰어 ===== */}
+      <Modal
+        visible={zoomVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomVisible(false)}
+      >
+        <View style={styles.zoomBackdrop}>
+          {zoomVisible && (
+            <ScrollView
+              ref={zoomRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: zoomStart * SCREEN_W, y: 0 }}
+              onLayout={() =>
+                zoomRef.current?.scrollTo({
+                  x: zoomStart * SCREEN_W,
+                  animated: false,
+                })
+              }
+              onMomentumScrollEnd={onZoomScroll}
+              scrollEventThrottle={16}
+              style={StyleSheet.absoluteFill}
+            >
+              {gallery.map((key, i) => (
+                <View key={`zoom-${i}`} style={styles.zoomPage}>
+                  <Image
+                    source={resolveCardImage(key)}
+                    style={styles.zoomImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* 좌측 상단 1/n */}
+          <View style={[styles.zoomCounter, { top: insets.top + 12 }]}>
+            <Text style={styles.zoomCounterText}>
+              {zoomIndex + 1} / {gallery.length}
+            </Text>
+          </View>
+
+          {/* 우측 상단 닫기 */}
+          <TouchableOpacity
+            style={[styles.zoomClose, { top: insets.top + 8 }]}
+            onPress={() => setZoomVisible(false)}
+            hitSlop={12}
+          >
+            <Text style={styles.zoomCloseText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -173,4 +249,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   linkText: { color: "white", fontWeight: "700", fontSize: 15 },
+
+  // ===== 전체화면 이미지 뷰어 =====
+  zoomBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+  },
+  zoomPage: {
+    width: SCREEN_W,
+    height: SCREEN_H,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoomImage: {
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  zoomCounter: {
+    position: "absolute",
+    left: 14,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  zoomCounterText: { color: "white", fontSize: 13, fontWeight: "700" },
+  zoomClose: {
+    position: "absolute",
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoomCloseText: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
 });
