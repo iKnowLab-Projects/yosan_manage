@@ -15,7 +15,9 @@
 set -uo pipefail
 
 PORT="${PORT:-26610}"
-BRANCH="${BRANCH:-preview}"
+ANDROID_BRANCH="${ANDROID_BRANCH:-preview}"     # 내 프로젝트(ghkook) — Android
+IOS_BRANCH="${IOS_BRANCH:-production}"          # 동료 프로젝트(ghkooks-team) — iOS TestFlight
+DEPLOY_IOS="${DEPLOY_IOS:-1}"                   # iOS(동료 프로젝트)에도 배포할지 (0 이면 생략)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_JSON="$REPO_ROOT/mobile/app.json"
@@ -50,13 +52,19 @@ update_apibase() {
 }
 
 deploy() {
-  ( cd "$MOBILE_DIR" && eas update --branch "$BRANCH" --message "auto: apiBase $1" ) 2>&1 | tee -a "$RUN_LOG"
+  local url="$1"
+  # Android → 내 프로젝트 (기본 config)
+  ( cd "$MOBILE_DIR" && APP_TARGET=android eas update --branch "$ANDROID_BRANCH" --platform android --message "auto: apiBase $url" ) 2>&1 | tee -a "$RUN_LOG"
+  # iOS → 동료 프로젝트 (APP_TARGET=ios 로 projectId 스위칭)
+  if [ "$DEPLOY_IOS" = "1" ]; then
+    ( cd "$MOBILE_DIR" && APP_TARGET=ios eas update --branch "$IOS_BRANCH" --platform ios --message "auto: apiBase $url" ) 2>&1 | tee -a "$RUN_LOG"
+  fi
 }
 
 cleanup() { [ -n "${TUNNEL_PID:-}" ] && kill "$TUNNEL_PID" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
-log "=== 터널 자동화 시작 (port=$PORT, branch=$BRANCH) ==="
+log "=== 터널 자동화 시작 (port=$PORT, android=$ANDROID_BRANCH, ios=$([ "$DEPLOY_IOS" = "1" ] && echo "$IOS_BRANCH" || echo off)) ==="
 while true; do
   start_tunnel
   log "cloudflared 시작 (PID=$TUNNEL_PID), URL 대기..."

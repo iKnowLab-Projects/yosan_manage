@@ -11,9 +11,29 @@
 - `cloudflared` 설치 (PATH 등록)
 - `eas-cli` 설치 + `eas login` 완료 (계정 인증 캐시가 있어야 무인 실행 가능)
 - 백엔드가 `localhost:26610` 에서 구동 중 — `cd backend && docker compose up`
-- 배포 대상 앱은 `preview` 프로파일로 빌드된 APK (OTA 채널 = `preview`)
 
-포트/채널을 바꾸려면 스크립트 상단의 `Port`/`$PORT`, `Branch`/`$BRANCH` 를 수정하세요.
+포트/채널을 바꾸려면 스크립트 상단의 `Port`/`$PORT`, `AndroidBranch`/`IosBranch` 를 수정하세요.
+
+## 이중 프로젝트 배포 (Android=내 것 / iOS=동료 것)
+같은 소스코드를 두 Expo 프로젝트로 배포합니다. `mobile/app.config.js` 가 환경변수
+`APP_TARGET` 으로 프로젝트 정체성(owner·projectId·updates.url)을 전환합니다.
+
+| 플랫폼 | Expo 프로젝트 | 채널 |
+|---|---|---|
+| Android | `ghkook / 32d09c89…` (내 것) | `preview` |
+| iOS(TestFlight) | `ghkooks-team / cf97fda0…` (동료) | `production` |
+
+- 이 스크립트는 apiBase 갱신 후 **양쪽 프로젝트에 모두** `eas update` 합니다
+  (`$DeployIos`/`DEPLOY_IOS=0` 으로 iOS 자동배포를 끌 수 있음).
+- 수동 배포 시:
+  ```powershell
+  # Android → 내 프로젝트
+  eas update --branch preview --platform android
+  # iOS → 동료 프로젝트 (환경변수로 projectId 전환)
+  $env:APP_TARGET="ios"; eas update --branch production --platform ios
+  ```
+- iOS 프로젝트에 발행하려면 동료가 당신을 그 프로젝트 **멤버로 초대**해야 합니다.
+- runtimeVersion 은 양쪽 빌드 모두 `0.1.0` 이라 매칭됩니다(네이티브 의존성 미추가 → JS OTA 호환).
 
 ---
 
