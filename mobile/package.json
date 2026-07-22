@@ -12,7 +12,7 @@
     "deploy:both": "npm run deploy:android && npm run deploy:ios",
     "updates:android": "cross-env APP_TARGET=android eas update:list --branch preview --limit 5",
     "updates:ios": "cross-env APP_TARGET=ios eas update:list --branch production --limit 5",
-    "build:ios": "cross-env APP_TARGET=ios eas build --platform ios --profile production",
+    "build:ios": "cross-env APP_TARGET=ios eas build --platform ios --profile production-ios",
     "submit:ios": "cross-env APP_TARGET=ios eas submit --platform ios --latest"
   },
   "dependencies": {

@@ -13,6 +13,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": { "APP_TARGET": "android" },
       "android": { "buildType": "apk" },
       "ios": {
         "simulator": false
@@ -21,7 +22,14 @@
     "production": {
       "channel": "production",
       "autoIncrement": true,
+      "env": { "APP_TARGET": "android" },
       "android": { "buildType": "app-bundle" },
+      "ios": {}
+    },
+    "production-ios": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": { "APP_TARGET": "ios" },
       "ios": {}
     }
   },
