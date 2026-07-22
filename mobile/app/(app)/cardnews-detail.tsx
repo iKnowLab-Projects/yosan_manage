@@ -55,6 +55,27 @@ export default function CardNewsDetail() {
       .catch((e: any) => setError(e?.message ?? "조회 실패"));
   }, [id]);
 
+  // 확대 중일 때만 드래그로 패닝 (미확대 시엔 좌우 페이징/탭이 동작하도록 양보)
+  // 훅(useMemo)이므로 조기 return 앞에서 항상 호출되어야 한다.
+  const imgPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_e, g) =>
+          imgZoomed && (Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3),
+        onPanResponderMove: (_e, g) => {
+          imgTX.setValue(clampT(baseTX.current + g.dx, MAX_TX));
+          imgTY.setValue(clampT(baseTY.current + g.dy, MAX_TY));
+        },
+        onPanResponderRelease: (_e, g) => {
+          baseTX.current = clampT(baseTX.current + g.dx, MAX_TX);
+          baseTY.current = clampT(baseTY.current + g.dy, MAX_TY);
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [imgZoomed],
+  );
+
   if (error) {
     return (
       <View style={styles.center}>
@@ -134,26 +155,6 @@ export default function CardNewsDetail() {
       lastTap.current = now;
     }
   };
-
-  // 확대 중일 때만 드래그로 패닝 (미확대 시엔 좌우 페이징/탭이 동작하도록 양보)
-  const imgPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_e, g) =>
-          imgZoomed && (Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3),
-        onPanResponderMove: (_e, g) => {
-          imgTX.setValue(clampT(baseTX.current + g.dx, MAX_TX));
-          imgTY.setValue(clampT(baseTY.current + g.dy, MAX_TY));
-        },
-        onPanResponderRelease: (_e, g) => {
-          baseTX.current = clampT(baseTX.current + g.dx, MAX_TX);
-          baseTY.current = clampT(baseTY.current + g.dy, MAX_TY);
-        },
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [imgZoomed],
-  );
 
   return (
     <ScrollView
