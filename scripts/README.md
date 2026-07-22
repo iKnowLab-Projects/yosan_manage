@@ -25,13 +25,17 @@
 
 - 이 스크립트는 apiBase 갱신 후 **양쪽 프로젝트에 모두** `eas update` 합니다
   (`$DeployIos`/`DEPLOY_IOS=0` 으로 iOS 자동배포를 끌 수 있음).
-- 수동 배포 시:
+- **수동 배포는 `mobile/` 에서 npm 스크립트로** (플랫폼별로 명확, env var 신경 안 써도 됨):
   ```powershell
-  # Android → 내 프로젝트
-  eas update --branch preview --platform android
-  # iOS → 동료 프로젝트 (환경변수로 projectId 전환)
-  $env:APP_TARGET="ios"; eas update --branch production --platform ios
+  cd mobile
+  npm run deploy:android      # Android → 내 프로젝트(ghkook), preview
+  npm run deploy:ios          # iOS → 동료 프로젝트(ghkooks-team), production
+  npm run deploy:both         # 둘 다
+  # 메시지 지정:   npm run deploy:ios -- --message "설명"
+  # 배포 확인:     npm run updates:android  /  npm run updates:ios
+  # iOS 새 빌드:   npm run build:ios  →  npm run submit:ios
   ```
+  (내부적으로 `cross-env APP_TARGET=…` 으로 app.config.js 프로젝트를 전환합니다.)
 - iOS 프로젝트에 발행하려면 동료가 당신을 그 프로젝트 **멤버로 초대**해야 합니다.
 - runtimeVersion 은 양쪽 빌드 모두 `0.1.0` 이라 매칭됩니다(네이티브 의존성 미추가 → JS OTA 호환).
 

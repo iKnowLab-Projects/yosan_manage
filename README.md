@@ -253,11 +253,12 @@ cloudflared tunnel --url http://localhost:26610
 4) OTA로 반영 — 재빌드 없이 앱을 재시작하면 새 백엔드 주소로 접속:
 ```powershell
 cd mobile
-eas update --branch preview --platform android --message "apiBase 갱신"          # Android(내 프로젝트)
-$env:APP_TARGET="ios"; eas update --branch production --platform ios --message "apiBase 갱신"  # iOS(동료 프로젝트)
+npm run deploy:android    # Android → 내 프로젝트(ghkook), preview
+npm run deploy:ios        # iOS → 동료 프로젝트(ghkooks-team), production
+# 둘 다: npm run deploy:both   |  메시지: npm run deploy:ios -- --message "apiBase 갱신"
 ```
 > Android는 내 Expo 프로젝트(`ghkook`), iOS TestFlight는 동료 프로젝트(`ghkooks-team`)로 배포합니다.
-> `mobile/app.config.js` 가 `APP_TARGET` 으로 프로젝트를 전환하며, 터널 스크립트는 양쪽에 모두 배포합니다. (자세히: [`scripts/README.md`](scripts/README.md))
+> `mobile/app.config.js` 가 `APP_TARGET` 으로 프로젝트를 전환하며, 터널 스크립트는 양쪽에 모두 자동 배포합니다. (자세히: [`scripts/README.md`](scripts/README.md))
 
 > ⚠️ 화면 코드·`apiBase` 등 **JS 변경만이면 `eas update` 로 충분**합니다. APK 재빌드는 아이콘/스플래시/네이티브 의존성이 바뀔 때만 필요합니다.
 > ⚠️ 배포용 APK는 `preview` 프로파일(=`preview` 채널)로 빌드하므로 OTA도 반드시 `--branch preview` 로 올려야 해당 기기에 반영됩니다.
