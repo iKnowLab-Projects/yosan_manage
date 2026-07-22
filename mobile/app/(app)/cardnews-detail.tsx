@@ -103,11 +103,16 @@ export default function CardNewsDetail() {
         setZoomed(true);
       }
     };
+    const shouldClaim = (e: any, g: any) =>
+      e.nativeEvent.touches.length >= 2 ||
+      (curScale.current > 1.01 && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2));
     return PanResponder.create({
+      // 캡처 단계에서 먼저 잡아 자식 Pressable/좌우 ScrollView보다 우선 → 핀치 인식률 개선
+      onStartShouldSetPanResponderCapture: (e) =>
+        e.nativeEvent.touches.length >= 2,
+      onMoveShouldSetPanResponderCapture: shouldClaim,
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (e, g) =>
-        e.nativeEvent.touches.length >= 2 ||
-        (curScale.current > 1.01 && (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2)),
+      onMoveShouldSetPanResponder: shouldClaim,
       onPanResponderGrant: (_e, g) => {
         lastDx.current = g.dx;
         lastDy.current = g.dy;
@@ -448,6 +453,7 @@ const styles = StyleSheet.create({
     height: SCREEN_H,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden", // 확대된 이미지가 옆 페이지로 넘쳐 겹치지 않도록 클립
   },
   zoomImage: {
     width: SCREEN_W,
