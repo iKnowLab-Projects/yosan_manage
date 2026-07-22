@@ -25,8 +25,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ===== 설정 =====
-$Port      = 26610
-$Branch    = 'preview'
+$Port          = 26610
+$AndroidBranch = 'preview'      # 내 프로젝트(ghkook, 32d09c89) — Android
+$IosBranch     = 'production'   # 동료 프로젝트(ghkooks-team, cf97fda0) — iOS TestFlight
+$DeployIos     = $true          # iOS(동료 프로젝트)에도 자동 배포할지
 $RepoRoot  = Split-Path -Parent $PSScriptRoot          # scripts/ 의 상위 = 저장소 루트
 $AppJson   = Join-Path $RepoRoot 'mobile\app.json'
 $MobileDir = Join-Path $RepoRoot 'mobile'
@@ -77,20 +79,32 @@ function Invoke-EasUpdate($url) {
   $ErrorActionPreference = 'Continue'
   Push-Location $MobileDir
   try {
-    Write-Log "eas update 시작... (진행 로그: $EasLog)"
-    & eas update --branch $Branch --message "auto: apiBase $url" --non-interactive 2>&1 |
+    # Android → 내 프로젝트 (기본 config)
+    Write-Log "eas update [Android/$AndroidBranch] 시작... (진행 로그: $EasLog)"
+    $env:APP_TARGET = 'android'
+    & eas update --branch $AndroidBranch --platform android --message "auto: apiBase $url" --non-interactive 2>&1 |
       Out-File -FilePath $EasLog -Append -Encoding utf8
-    if ($LASTEXITCODE -eq 0) {
-      Write-Log "eas update 완료"
-    } else {
-      Write-Log "eas update 실패 (exit=$LASTEXITCODE) — 자세한 내용은 $EasLog 참고"
+    if ($LASTEXITCODE -eq 0) { Write-Log "eas update [Android] 완료" }
+    else { Write-Log "eas update [Android] 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
+
+    # iOS → 동료 프로젝트 (APP_TARGET=ios 로 projectId 스위칭)
+    if ($DeployIos) {
+      Write-Log "eas update [iOS/$IosBranch] 시작..."
+      $env:APP_TARGET = 'ios'
+      & eas update --branch $IosBranch --platform ios --message "auto: apiBase $url" --non-interactive 2>&1 |
+        Out-File -FilePath $EasLog -Append -Encoding utf8
+      if ($LASTEXITCODE -eq 0) { Write-Log "eas update [iOS] 완료" }
+      else { Write-Log "eas update [iOS] 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
     }
   }
-  finally { Pop-Location }
+  finally {
+    Remove-Item Env:APP_TARGET -ErrorAction SilentlyContinue
+    Pop-Location
+  }
 }
 
 # ===== 메인 루프 =====
-Write-Log "=== 터널 자동화 시작 (port=$Port, branch=$Branch, NoDeploy=$($NoDeploy.IsPresent)) ==="
+Write-Log "=== 터널 자동화 시작 (port=$Port, android=$AndroidBranch, ios=$(if ($DeployIos) { $IosBranch } else { 'off' }), NoDeploy=$($NoDeploy.IsPresent)) ==="
 while ($true) {
   $proc = $null
   try {
