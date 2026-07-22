@@ -4,7 +4,7 @@
   동작:
     1) cloudflared 퀵 터널을 백그라운드(창 없음)로 실행 → 임시 URL 발급
     2) 발급 URL을 mobile/app.json 의 extra.apiBase 에 기록
-    3) mobile 에서 `eas update --branch preview` 로 OTA 배포
+    3) mobile 에서 Android(내 프로젝트)+iOS(동료 프로젝트) 양쪽에 OTA 배포 (npm run deploy:android / deploy:ios)
     4) 터널이 끊기면 자동 재시작 후 (URL이 바뀌므로) 2~3을 재수행 → 컴퓨터가 켜져 있는 한 유지
 
   사전 조건:
@@ -25,10 +25,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ===== 설정 =====
-$Port          = 26610
-$AndroidBranch = 'preview'      # 내 프로젝트(ghkook, 32d09c89) — Android
-$IosBranch     = 'production'   # 동료 프로젝트(ghkooks-team, cf97fda0) — iOS TestFlight
-$DeployIos     = $true          # iOS(동료 프로젝트)에도 자동 배포할지
+$Port      = 26610
+# 배포 대상/브랜치/프로젝트는 mobile/package.json 의 deploy:android / deploy:ios 스크립트에 정의됨
+# (app.config.js 가 APP_TARGET 으로 Android=ghkook / iOS=ghkooks-team 전환)
+$DeployIos = $true          # iOS(동료 프로젝트)에도 자동 배포할지
 $RepoRoot  = Split-Path -Parent $PSScriptRoot          # scripts/ 의 상위 = 저장소 루트
 $AppJson   = Join-Path $RepoRoot 'mobile\app.json'
 $MobileDir = Join-Path $RepoRoot 'mobile'
@@ -79,32 +79,27 @@ function Invoke-EasUpdate($url) {
   $ErrorActionPreference = 'Continue'
   Push-Location $MobileDir
   try {
-    # Android → 내 프로젝트 (기본 config)
-    Write-Log "eas update [Android/$AndroidBranch] 시작... (진행 로그: $EasLog)"
-    $env:APP_TARGET = 'android'
-    & eas update --branch $AndroidBranch --platform android --message "auto: apiBase $url" --non-interactive 2>&1 |
+    # Android → 내 프로젝트 (npm run deploy:android)
+    Write-Log "deploy:android 시작... (진행 로그: $EasLog)"
+    & npm run deploy:android -- --message "auto: apiBase $url" --non-interactive 2>&1 |
       Out-File -FilePath $EasLog -Append -Encoding utf8
-    if ($LASTEXITCODE -eq 0) { Write-Log "eas update [Android] 완료" }
-    else { Write-Log "eas update [Android] 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
+    if ($LASTEXITCODE -eq 0) { Write-Log "deploy:android 완료" }
+    else { Write-Log "deploy:android 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
 
-    # iOS → 동료 프로젝트 (APP_TARGET=ios 로 projectId 스위칭)
+    # iOS → 동료 프로젝트 (npm run deploy:ios)
     if ($DeployIos) {
-      Write-Log "eas update [iOS/$IosBranch] 시작..."
-      $env:APP_TARGET = 'ios'
-      & eas update --branch $IosBranch --platform ios --message "auto: apiBase $url" --non-interactive 2>&1 |
+      Write-Log "deploy:ios 시작..."
+      & npm run deploy:ios -- --message "auto: apiBase $url" --non-interactive 2>&1 |
         Out-File -FilePath $EasLog -Append -Encoding utf8
-      if ($LASTEXITCODE -eq 0) { Write-Log "eas update [iOS] 완료" }
-      else { Write-Log "eas update [iOS] 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
+      if ($LASTEXITCODE -eq 0) { Write-Log "deploy:ios 완료" }
+      else { Write-Log "deploy:ios 실패 (exit=$LASTEXITCODE) — $EasLog 참고" }
     }
   }
-  finally {
-    Remove-Item Env:APP_TARGET -ErrorAction SilentlyContinue
-    Pop-Location
-  }
+  finally { Pop-Location }
 }
 
 # ===== 메인 루프 =====
-Write-Log "=== 터널 자동화 시작 (port=$Port, android=$AndroidBranch, ios=$(if ($DeployIos) { $IosBranch } else { 'off' }), NoDeploy=$($NoDeploy.IsPresent)) ==="
+Write-Log "=== 터널 자동화 시작 (port=$Port, deployIos=$DeployIos, NoDeploy=$($NoDeploy.IsPresent)) ==="
 while ($true) {
   $proc = $null
   try {

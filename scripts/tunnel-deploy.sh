@@ -5,7 +5,7 @@
 #  동작:
 #    1) cloudflared 퀵 터널을 백그라운드로 실행 → 임시 URL 발급
 #    2) 발급 URL을 mobile/app.json 의 extra.apiBase 에 기록
-#    3) mobile 에서 `eas update --branch preview` 로 OTA 배포
+#    3) mobile 에서 Android+iOS 양쪽 OTA 배포 (npm run deploy:android / deploy:ios)
 #    4) 터널이 끊기면 자동 재시작 후 (URL이 바뀌므로) 2~3 재수행
 #
 #  사전 조건: cloudflared, eas-cli(+ eas login), 백엔드가 localhost:$PORT 구동 중
@@ -15,8 +15,8 @@
 set -uo pipefail
 
 PORT="${PORT:-26610}"
-ANDROID_BRANCH="${ANDROID_BRANCH:-preview}"     # 내 프로젝트(ghkook) — Android
-IOS_BRANCH="${IOS_BRANCH:-production}"          # 동료 프로젝트(ghkooks-team) — iOS TestFlight
+# 배포 대상/브랜치/프로젝트는 mobile/package.json 의 deploy:android / deploy:ios 에 정의됨
+# (app.config.js 가 APP_TARGET 으로 Android=ghkook / iOS=ghkooks-team 전환)
 DEPLOY_IOS="${DEPLOY_IOS:-1}"                   # iOS(동료 프로젝트)에도 배포할지 (0 이면 생략)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -54,17 +54,17 @@ update_apibase() {
 deploy() {
   local url="$1"
   # Android → 내 프로젝트 (기본 config)
-  ( cd "$MOBILE_DIR" && APP_TARGET=android eas update --branch "$ANDROID_BRANCH" --platform android --message "auto: apiBase $url" ) 2>&1 | tee -a "$RUN_LOG"
-  # iOS → 동료 프로젝트 (APP_TARGET=ios 로 projectId 스위칭)
+  ( cd "$MOBILE_DIR" && npm run deploy:android -- --message "auto: apiBase $url" --non-interactive ) 2>&1 | tee -a "$RUN_LOG"
+  # iOS → 동료 프로젝트 (npm run deploy:ios)
   if [ "$DEPLOY_IOS" = "1" ]; then
-    ( cd "$MOBILE_DIR" && APP_TARGET=ios eas update --branch "$IOS_BRANCH" --platform ios --message "auto: apiBase $url" ) 2>&1 | tee -a "$RUN_LOG"
+    ( cd "$MOBILE_DIR" && npm run deploy:ios -- --message "auto: apiBase $url" --non-interactive ) 2>&1 | tee -a "$RUN_LOG"
   fi
 }
 
 cleanup() { [ -n "${TUNNEL_PID:-}" ] && kill "$TUNNEL_PID" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
-log "=== 터널 자동화 시작 (port=$PORT, android=$ANDROID_BRANCH, ios=$([ "$DEPLOY_IOS" = "1" ] && echo "$IOS_BRANCH" || echo off)) ==="
+log "=== 터널 자동화 시작 (port=$PORT, deployIos=$DEPLOY_IOS) ==="
 while true; do
   start_tunnel
   log "cloudflared 시작 (PID=$TUNNEL_PID), URL 대기..."
