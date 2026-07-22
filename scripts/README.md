@@ -105,7 +105,7 @@ loginctl enable-linger "$USER"   # 로그아웃 후에도 유지
 1. `cloudflared tunnel --url http://localhost:26610` 를 백그라운드로 실행
 2. 출력 로그에서 `https://xxxx.trycloudflare.com` URL을 파싱
 3. `mobile/app.json` 의 `apiBase` 값만 교체(포맷 보존)
-4. `mobile/` 에서 `eas update --branch preview` 실행 → OTA 반영
+4. `mobile/` 에서 `npm run deploy:android` + `deploy:ios` 실행 → 양쪽 프로젝트 OTA 반영
 5. 터널 프로세스가 종료되면 1로 돌아가 재시작·재배포
 
 ## 근본적 대안 (선택)
