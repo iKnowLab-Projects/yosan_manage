@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +15,7 @@ from app.models.mileage import (
     amount_for,
     is_hospital_visit,
 )
+from app.models.patient import PatientProfile
 from app.models.user import User, UserRole
 from app.schemas.mileage import (
     MileageMonth,
@@ -24,6 +26,20 @@ from app.schemas.mileage import (
 router = APIRouter(prefix="/mileage", tags=["mileage"])
 
 
+def _enrollment_ym(db: Session, patient_id: int) -> int:
+    """환자 등록(프로필 생성) 달력 월을 '월 서수'(year*12+month-1)로 반환. 없으면 이번 달."""
+    profile = (
+        db.query(PatientProfile)
+        .filter(PatientProfile.user_id == patient_id)
+        .first()
+    )
+    d = profile.created_at if (profile and profile.created_at) else None
+    if d is None:
+        t = date.today()
+        return t.year * 12 + (t.month - 1)
+    return d.year * 12 + (d.month - 1)
+
+
 def _build_summary(db: Session, patient_id: int) -> MileageSummary:
     rows = (
         db.query(MileageCompletion)
@@ -31,6 +47,11 @@ def _build_summary(db: Session, patient_id: int) -> MileageSummary:
         .all()
     )
     by_month: Dict[int, MileageCompletion] = {r.month_index: r for r in rows}
+
+    # 월차 1 = 등록 달력 월, 이후 매월 순차. 절대 달력 기준으로 '지난 달 미완료'를 X 표시.
+    start_ord = _enrollment_ym(db, patient_id)
+    today = date.today()
+    current_ord = today.year * 12 + (today.month - 1)
 
     months: List[MileageMonth] = []
     earned = 0
@@ -43,6 +64,9 @@ def _build_summary(db: Session, patient_id: int) -> MileageSummary:
         if rec:
             earned += amount
             completed_count += 1
+        cal_ord = start_ord + (m - 1)
+        cal_ym = f"{cal_ord // 12:04d}-{cal_ord % 12 + 1:02d}"
+        missed = rec is None and cal_ord < current_ord  # 달력상 지난 달인데 미완료
         months.append(
             MileageMonth(
                 month_index=m,
@@ -52,6 +76,8 @@ def _build_summary(db: Session, patient_id: int) -> MileageSummary:
                 completed_at=rec.completed_at if rec else None,
                 note=rec.note if rec else None,
                 survey_submission_id=rec.survey_submission_id if rec else None,
+                calendar_ym=cal_ym,
+                missed=missed,
             )
         )
 

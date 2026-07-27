@@ -43,8 +43,44 @@ export default function InBodyPanel({ patientId }: { patientId: number }) {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // InBody 피드백 알림 발송
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fbTitle, setFbTitle] = useState("InBody 피드백");
+  const [fbBody, setFbBody] = useState("");
+  const [fbSending, setFbSending] = useState(false);
+  const [fbDone, setFbDone] = useState(false);
+
   const update = (k: string, v: string) =>
     setForm((s) => ({ ...s, [k]: v }));
+
+  async function sendFeedback(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!fbBody.trim()) {
+      setError("피드백 내용을 입력해 주세요.");
+      return;
+    }
+    setFbSending(true);
+    try {
+      await api("/api/v1/notifications/send", {
+        method: "POST",
+        body: JSON.stringify({
+          recipient_ids: [patientId],
+          title: fbTitle.trim() || "InBody 피드백",
+          body: fbBody.trim(),
+          category: "inbody",
+        }),
+      });
+      setFbBody("");
+      setFbDone(true);
+      setFbOpen(false);
+      setTimeout(() => setFbDone(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "피드백 발송 실패");
+    } finally {
+      setFbSending(false);
+    }
+  }
 
   async function load() {
     try {
@@ -143,18 +179,71 @@ export default function InBodyPanel({ patientId }: { patientId: number }) {
         <h2 className="text-lg font-semibold">
           InBody 결과 ({items.length}건)
         </h2>
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          {open ? "닫기" : "+ 결과 등록"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFbOpen((o) => !o)}
+            className="rounded border border-brand-600 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50"
+          >
+            {fbOpen ? "닫기" : "피드백 알림"}
+          </button>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            {open ? "닫기" : "+ 결과 등록"}
+          </button>
+        </div>
       </div>
 
       {error && (
         <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
+      )}
+
+      {fbDone && (
+        <p className="mb-4 rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          피드백 알림을 발송했습니다.
+        </p>
+      )}
+
+      {fbOpen && (
+        <form
+          onSubmit={sendFeedback}
+          className="mb-6 space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4"
+        >
+          <p className="text-sm font-semibold text-slate-700">
+            InBody 피드백 알림 발송 (이 환자에게 알림으로 전송)
+          </p>
+          <label className="block">
+            <span className="text-xs text-slate-600">제목</span>
+            <input
+              value={fbTitle}
+              onChange={(e) => setFbTitle(e.target.value)}
+              className={`mt-1 ${inputCls} bg-white`}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">
+              내용 <span className="text-danger">*</span>
+            </span>
+            <textarea
+              value={fbBody}
+              onChange={(e) => setFbBody(e.target.value)}
+              placeholder="예: 지난 측정 대비 체지방률이 감소했습니다. 현재 식단을 유지해 주세요."
+              className={`mt-1 min-h-[90px] ${inputCls} bg-white`}
+            />
+          </label>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={fbSending}
+              className="rounded bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            >
+              {fbSending ? "발송 중..." : "알림 발송"}
+            </button>
+          </div>
+        </form>
       )}
 
       {open && (

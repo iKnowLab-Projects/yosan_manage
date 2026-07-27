@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     reports,
     surveys,
     uploads,
+    views,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -24,3 +25,4 @@ api_router.include_router(board.router)
 api_router.include_router(cardnews.router)
 api_router.include_router(inbody.router)
 api_router.include_router(uploads.router)
+api_router.include_router(views.router)

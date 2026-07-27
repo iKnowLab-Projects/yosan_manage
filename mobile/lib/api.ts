@@ -17,6 +17,21 @@ export async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
 }
 
+// 콘텐츠 조회 1회 기록 (fire-and-forget, 실패 무시)
+export async function recordView(
+  contentType: "cardnews" | "notification",
+  contentId: number,
+) {
+  try {
+    await api("/api/v1/views", {
+      method: "POST",
+      body: JSON.stringify({ content_type: contentType, content_id: contentId }),
+    });
+  } catch {
+    // 조회 기록 실패는 사용자 흐름에 영향 없음
+  }
+}
+
 export async function setSession(token: string, user: StoredUser) {
   await AsyncStorage.setItem(TOKEN_KEY, token);
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -168,6 +183,8 @@ export type MileageMonth = {
   completed_at?: string | null;
   note?: string | null;
   survey_submission_id?: number | null;
+  calendar_ym?: string | null; // 이 월차의 달력 월 (YYYY-MM)
+  missed?: boolean; // 지난 달인데 미완료 → 빨간 X
 };
 
 export type MileageSummary = {

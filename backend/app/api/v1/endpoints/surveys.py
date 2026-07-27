@@ -28,48 +28,46 @@ router = APIRouter(prefix="/surveys", tags=["surveys"])
 def _auto_complete_mileage(
     db: Session, patient_id: int, check_date: date, submission_id: int
 ) -> None:
-    """설문 제출 시 이번 달 마일리지 미션(다음 미완료 월)을 자동 완료 처리.
+    """설문 제출 시, 제출한 달력 월에 해당하는 마일리지 월차를 완료 처리.
 
-    한 달에 1회만 진행하는 미션이므로, 같은 달에 이미 제출 이력이 있으면
-    중복 완료를 방지한다. (프론트도 월 1회로 제한하지만 백엔드에서도 방어)
+    월차 1 = 환자 등록(프로필 생성) 달력 월, 이후 매월 순차(절대 달력 기준).
+    같은 달 슬롯이 이미 완료돼 있으면(월 1회) 건너뛴다.
     """
-    month_start = check_date.replace(day=1)
-    if check_date.month == 12:
-        next_start = check_date.replace(year=check_date.year + 1, month=1, day=1)
-    else:
-        next_start = check_date.replace(month=check_date.month + 1, day=1)
-
-    submissions_this_month = (
-        db.query(SurveySubmission)
-        .filter(
-            SurveySubmission.patient_id == patient_id,
-            SurveySubmission.check_date >= month_start,
-            SurveySubmission.check_date < next_start,
-        )
-        .count()
+    profile = (
+        db.query(PatientProfile)
+        .filter(PatientProfile.user_id == patient_id)
+        .first()
     )
-    # 방금 커밋한 제출 포함. 이번이 이번 달 첫 제출이 아니면 건너뜀.
-    if submissions_this_month != 1:
+    d = profile.created_at if (profile and profile.created_at) else None
+    start_ord = (
+        (d.year * 12 + d.month - 1)
+        if d
+        else (check_date.year * 12 + check_date.month - 1)
+    )
+    idx = (check_date.year * 12 + check_date.month - 1) - start_ord + 1
+    if idx < 1 or idx > TOTAL_MONTHS:
         return
 
-    completed = {
-        r.month_index
-        for r in db.query(MileageCompletion)
-        .filter(MileageCompletion.patient_id == patient_id)
-        .all()
-    }
-    for m in range(1, TOTAL_MONTHS + 1):
-        if m not in completed:
-            db.add(
-                MileageCompletion(
-                    patient_id=patient_id,
-                    month_index=m,
-                    note="설문 제출 자동 완료",
-                    survey_submission_id=submission_id,
-                )
-            )
-            db.commit()
-            break
+    existing = (
+        db.query(MileageCompletion)
+        .filter(
+            MileageCompletion.patient_id == patient_id,
+            MileageCompletion.month_index == idx,
+        )
+        .first()
+    )
+    if existing:
+        return
+
+    db.add(
+        MileageCompletion(
+            patient_id=patient_id,
+            month_index=idx,
+            note="설문 제출 자동 완료",
+            survey_submission_id=submission_id,
+        )
+    )
+    db.commit()
 
 
 def _patient_group(db: Session, user: User) -> str:

@@ -76,8 +76,11 @@ export default function MileageScreen() {
 
   const currentMonthIndex = useMemo(() => {
     if (!summary) return null;
-    const first = summary.months.find((m) => !m.completed);
-    return first?.month_index ?? null;
+    // 진행할 미션 = 이번 달력 월에 해당하는 미완료 월차
+    const d = new Date();
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const cur = summary.months.find((m) => m.calendar_ym === ym && !m.completed);
+    return cur?.month_index ?? null;
   }, [summary]);
 
   const onPressCompleted = useCallback(
@@ -198,6 +201,7 @@ export default function MileageScreen() {
         <LegendDot variant="small" label="매월 미션" />
         <LegendDot variant="big" label="6개월 병원 방문" />
         <LegendDot variant="current" label="진행할 미션" />
+        <LegendDot variant="missed" label="미실시(지난 달)" />
       </View>
 
       <View style={styles.cycleNav}>
@@ -285,6 +289,7 @@ function Circle({
   const big = month.is_hospital_visit;
   const completed = month.completed;
   const showCurrent = isCurrent && !completed;
+  const missed = !!month.missed && !completed && !showCurrent;
 
   const inner = (
     <View
@@ -292,12 +297,15 @@ function Circle({
         big ? styles.bigCircle : styles.smallCircle,
         completed && (big ? styles.bigFilled : styles.smallFilled),
         showCurrent && styles.currentCircle,
+        missed && styles.missedFill,
       ]}
     >
       {completed ? (
         <Text style={[styles.checkText, big && { fontSize: 22 }]}>✓</Text>
       ) : showCurrent ? (
         <Text style={[styles.currentText, big && { fontSize: 22 }]}>▶</Text>
+      ) : missed ? (
+        <Text style={[styles.missedText, big && { fontSize: 22 }]}>✕</Text>
       ) : null}
     </View>
   );
@@ -350,7 +358,7 @@ function LegendDot({
   variant,
   label,
 }: {
-  variant: "small" | "big" | "current";
+  variant: "small" | "big" | "current" | "missed";
   label: string;
 }) {
   return (
@@ -359,12 +367,17 @@ function LegendDot({
         style={[
           variant === "big" ? styles.bigCircle : styles.smallCircle,
           variant === "current" && styles.currentCircle,
+          variant === "missed" && styles.missedFill,
           {
             transform: [{ scale: variant === "small" ? 0.5 : 0.45 }],
             marginRight: 4,
           },
         ]}
-      />
+      >
+        {variant === "missed" && (
+          <Text style={[styles.missedText, { fontSize: 12 }]}>✕</Text>
+        )}
+      </View>
       <Text style={styles.legendText}>{label}</Text>
     </View>
   );
@@ -501,6 +514,8 @@ const styles = StyleSheet.create({
   },
   checkText: { color: "white", fontWeight: "800", fontSize: 16 },
   currentText: { color: "#15803d", fontWeight: "800", fontSize: 16 },
+  missedFill: { backgroundColor: "#ef4444", borderColor: "#b91c1c" },
+  missedText: { color: "white", fontWeight: "800", fontSize: 16 },
   cellMonth: { fontSize: 10, color: "#475569", marginTop: 4 },
   currentMonthLabel: { color: "#15803d", fontWeight: "700" },
 

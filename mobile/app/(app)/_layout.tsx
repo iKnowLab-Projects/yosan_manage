@@ -62,6 +62,7 @@ export default function AppLayout() {
   return (
     <Tabs
       initialRouteName="home"
+      backBehavior="history"
       screenOptions={{
         headerShown: true,
         headerTitleStyle: { color: "#1e293b" },

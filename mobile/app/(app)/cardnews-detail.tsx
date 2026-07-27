@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api, CardNews } from "@/lib/api";
+import { api, CardNews, recordView } from "@/lib/api";
 import { resolveCardImage } from "@/lib/images";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -66,7 +66,10 @@ export default function CardNewsDetail() {
   useEffect(() => {
     if (!id) return;
     api<CardNews>(`/api/v1/cardnews/${id}`)
-      .then(setItem)
+      .then((data) => {
+        setItem(data);
+        recordView("cardnews", data.id); // 조회수 집계
+      })
       .catch((e: any) => setError(e?.message ?? "조회 실패"));
   }, [id]);
 
