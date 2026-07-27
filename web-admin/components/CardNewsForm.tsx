@@ -25,6 +25,10 @@ export default function CardNewsForm({
   );
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? true);
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
+  const [videoKey, setVideoKey] = useState<string | null>(
+    initial?.video_key ?? null
+  );
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +67,22 @@ export default function CardNewsForm({
     });
   }
 
+  async function onPickVideo(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoUploading(true);
+    setError(null);
+    try {
+      const { key } = await uploadFile(file);
+      setVideoKey(key);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "동영상 업로드 실패");
+    } finally {
+      setVideoUploading(false);
+      e.target.value = "";
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -83,6 +103,7 @@ export default function CardNewsForm({
         body: body.trim() || null,
         image_key: images[0],
         images,
+        video_key: videoKey,
         link_url: linkUrl.trim() || null,
         display_order: Number(displayOrder) || 0,
         is_published: isPublished,
@@ -222,6 +243,49 @@ export default function CardNewsForm({
         </div>
       </div>
 
+      {/* 동영상 (선택) */}
+      <div>
+        <span className="text-sm text-slate-600">
+          동영상 (선택)
+          <span className="ml-1 text-xs text-slate-400">
+            (mp4/mov/webm, 최대 100MB)
+          </span>
+        </span>
+        <div className="mt-2 flex items-center gap-3">
+          {videoKey && (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={assetUrl(videoKey)}
+              controls
+              className="h-28 rounded border border-slate-200 bg-black"
+            />
+          )}
+          <label className="cursor-pointer rounded border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
+            {videoUploading
+              ? "업로드 중..."
+              : videoKey
+                ? "동영상 변경"
+                : "+ 동영상 업로드"}
+            <input
+              type="file"
+              accept="video/*"
+              onChange={onPickVideo}
+              className="hidden"
+              disabled={videoUploading}
+            />
+          </label>
+          {videoKey && (
+            <button
+              type="button"
+              onClick={() => setVideoKey(null)}
+              className="text-sm text-red-600 hover:underline"
+            >
+              제거
+            </button>
+          )}
+        </div>
+      </div>
+
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
@@ -234,7 +298,7 @@ export default function CardNewsForm({
       <div className="flex justify-end gap-2 pt-2">
         <button
           type="submit"
-          disabled={submitting || uploading}
+          disabled={submitting || uploading || videoUploading}
           className="rounded bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {submitting ? "저장 중..." : submitLabel}

@@ -29,3 +29,11 @@ export function resolveImage(key?: string | null): ImageSourcePropType {
 
 // 하위 호환 별칭 (기존 카드뉴스 화면들이 사용)
 export const resolveCardImage = resolveImage;
+
+// 동영상 등 미디어의 재생 URL(문자열) 반환. 업로드 상대경로면 API_BASE 접두.
+export function resolveMediaUrl(key?: string | null): string {
+  if (!key) return "";
+  if (/^https?:\/\//.test(key)) return key;
+  if (key.startsWith("/")) return `${API_BASE}${key}`;
+  return key;
+}

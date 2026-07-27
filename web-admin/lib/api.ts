@@ -197,6 +197,7 @@ export type CardNews = {
   body?: string | null;
   image_key: string;
   images: string[];
+  video_key?: string | null;
   link_url?: string | null;
   display_order: number;
   is_published: boolean;
@@ -211,6 +212,7 @@ export type CardNewsIn = {
   body?: string | null;
   image_key: string;
   images: string[];
+  video_key?: string | null;
   link_url?: string | null;
   display_order: number;
   is_published: boolean;
