@@ -37,6 +37,10 @@ def _migrate() -> None:
         conn.execute(
             text("ALTER TABLE card_news ADD COLUMN IF NOT EXISTS author VARCHAR(100)")
         )
+        # 카드뉴스 첨부 동영상
+        conn.execute(
+            text("ALTER TABLE card_news ADD COLUMN IF NOT EXISTS video_key VARCHAR(300)")
+        )
         # 설문 제출로 자동 완료된 마일리지 → 해당 제출 연결
         conn.execute(
             text(

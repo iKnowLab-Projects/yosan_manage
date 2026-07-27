@@ -33,6 +33,7 @@ class CardNewsIn(BaseModel):
     body: Optional[str] = None
     image_key: str
     images: List[str] = []
+    video_key: Optional[str] = None
     link_url: Optional[str] = None
     display_order: int = 0
     is_published: bool = True
@@ -47,6 +48,7 @@ class CardNewsOut(BaseModel):
     body: Optional[str] = None
     image_key: str
     images: List[str] = []
+    video_key: Optional[str] = None
     link_url: Optional[str] = None
     display_order: int
     is_published: bool

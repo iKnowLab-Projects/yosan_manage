@@ -18,8 +18,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { api, CardNews, recordView } from "@/lib/api";
-import { resolveCardImage } from "@/lib/images";
+import { resolveCardImage, resolveMediaUrl } from "@/lib/images";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const IMG_ZOOM = 2; // 더블탭 확대 배율
@@ -309,6 +310,9 @@ export default function CardNewsDetail() {
         )}
         {!!item.summary && <Text style={styles.summary}>{item.summary}</Text>}
         {!!item.body && <Text style={styles.content}>{item.body}</Text>}
+        {!!item.video_key && (
+          <VideoBlock url={resolveMediaUrl(item.video_key)} />
+        )}
         {!!item.link_url && (
           <TouchableOpacity
             style={styles.linkBtn}
@@ -393,7 +397,29 @@ export default function CardNewsDetail() {
   );
 }
 
+// 첨부 동영상 재생 (expo-video). item 로드 후에만 렌더되므로 훅 규칙 안전.
+function VideoBlock({ url }: { url: string }) {
+  const player = useVideoPlayer(url, (p) => {
+    p.loop = false;
+  });
+  return (
+    <VideoView
+      style={styles.video}
+      player={player}
+      allowsFullscreen
+      contentFit="contain"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
+  video: {
+    width: "100%",
+    height: 220,
+    marginTop: 16,
+    borderRadius: 10,
+    backgroundColor: "#000",
+  },
   center: {
     flex: 1,
     justifyContent: "center",

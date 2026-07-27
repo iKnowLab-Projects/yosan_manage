@@ -3,10 +3,13 @@
     "name": "통풍식이 마일리지",
     "slug": "yosan-monitor",
     "scheme": "yosan",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "icon": "./image/logo_icon_refac_remove.png",
     "splash": {
       "image": "./image/logo_icon_refac_remove.png",
@@ -18,9 +21,9 @@
       "bundleIdentifier": "com.yosan.monitor",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -35,7 +38,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-video"
     ],
     "extra": {
       "apiBase": "https://numerical-airport-carrier-thats.trycloudflare.com",
