@@ -8,6 +8,7 @@ from app.models.mileage import MileageCompletion
 from app.models.password_reset import PasswordResetRequest
 from app.models.content import Announcement, CardNews
 from app.models.inbody import InBodyResult
+from app.models.view import ContentView
 
 __all__ = [
     "User",
@@ -25,4 +26,5 @@ __all__ = [
     "Announcement",
     "CardNews",
     "InBodyResult",
+    "ContentView",
 ]

@@ -8,6 +8,7 @@ from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models.content import Announcement, CardNews
 from app.models.inbody import InBodyResult  # noqa: F401  (create_all 등록용)
+from app.models.view import ContentView  # noqa: F401  (create_all 등록용)
 from app.models.user import User, UserRole
 
 logger = logging.getLogger(__name__)

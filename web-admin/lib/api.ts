@@ -235,6 +235,19 @@ export type AnnouncementIn = {
   is_published: boolean;
 };
 
+export type ViewSummary = {
+  cardnews_total: number;
+  notification_total: number;
+  by_cardnews: { content_id: number; title: string; count: number }[];
+  by_patient: {
+    patient_id: number;
+    name: string;
+    cardnews_views: number;
+    notification_views: number;
+    total: number;
+  }[];
+};
+
 export type InBodyResult = {
   id: number;
   patient_id: number;

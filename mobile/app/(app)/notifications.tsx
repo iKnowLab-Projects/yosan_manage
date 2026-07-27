@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api, Notification } from "@/lib/api";
+import { api, Notification, recordView } from "@/lib/api";
 
 export default function NotificationsScreen() {
   const [items, setItems] = useState<Notification[]>([]);
@@ -53,7 +53,10 @@ export default function NotificationsScreen() {
       }
       renderItem={({ item }) => (
         <TouchableOpacity
-          onPress={() => !item.read && markRead(item.id)}
+          onPress={() => {
+            recordView("notification", item.id); // 조회수 집계
+            if (!item.read) markRead(item.id);
+          }}
           activeOpacity={0.8}
           style={[styles.card, !item.read && styles.unread]}
         >
@@ -75,6 +78,7 @@ export default function NotificationsScreen() {
 function labelOf(c: string) {
   if (c === "reminder") return "보고 독촉";
   if (c === "alert") return "긴급";
+  if (c === "inbody") return "InBody 피드백";
   return "안내";
 }
 
