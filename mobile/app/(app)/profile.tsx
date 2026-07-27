@@ -1,7 +1,22 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { api, clearSession } from "@/lib/api";
+
+// TODO(배포 전): 실제 호스팅된 URL로 교체하세요. 스토어 리스팅에도 동일 URL 필요.
+const PRIVACY_URL = "https://iknowlab-projects.github.io/yosan_manage/privacy";
+const TERMS_URL = "https://iknowlab-projects.github.io/yosan_manage/terms";
+const MEDICAL_DISCLAIMER =
+  "본 앱은 의료기기가 아니며, 제공되는 정보와 마일리지는 건강관리 참고용입니다. " +
+  "진단·치료 등 의료적 판단은 반드시 전문의와 상담하세요.";
 
 type PatientMe = {
   id: number;
@@ -38,6 +53,30 @@ export default function Profile() {
     router.replace("/(auth)/login");
   }
 
+  function confirmDeleteAccount() {
+    Alert.alert(
+      "회원 탈퇴",
+      "탈퇴하면 계정과 모든 데이터(보고·설문·마일리지·InBody·알림 등)가 " +
+        "영구 삭제되며 복구할 수 없습니다.\n\n정말 탈퇴하시겠어요?",
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "탈퇴",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api("/api/v1/auth/me", { method: "DELETE" });
+              await clearSession();
+              router.replace("/(auth)/login");
+            } catch (e: any) {
+              Alert.alert("탈퇴 실패", e?.message ?? "오류가 발생했습니다.");
+            }
+          },
+        },
+      ],
+    );
+  }
+
   if (error) {
     return (
       <View style={styles.center}>
@@ -66,7 +105,10 @@ export default function Profile() {
 
   const p = me.profile ?? {};
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: "#f8fafc" }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: "#f8fafc" }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+    >
       <View style={styles.card}>
         <Text style={styles.name}>{me.name}</Text>
         <Text style={styles.email}>{me.email}</Text>
@@ -91,10 +133,40 @@ export default function Profile() {
       >
         <Text style={styles.historyBtnText}>나의 기록 보기</Text>
       </TouchableOpacity>
+
+      {/* 약관 및 정책 */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>약관 및 정책</Text>
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => Linking.openURL(PRIVACY_URL)}
+        >
+          <Text style={styles.linkText}>개인정보 처리방침</Text>
+          <Text style={styles.linkChevron}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.linkRow, { borderBottomWidth: 0 }]}
+          onPress={() => Linking.openURL(TERMS_URL)}
+        >
+          <Text style={styles.linkText}>이용약관</Text>
+          <Text style={styles.linkChevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 의료 면책 고지 */}
+      <View style={styles.disclaimer}>
+        <Text style={styles.disclaimerTitle}>의료 면책 고지</Text>
+        <Text style={styles.disclaimerText}>{MEDICAL_DISCLAIMER}</Text>
+      </View>
+
       <TouchableOpacity style={styles.logout} onPress={logout}>
         <Text style={styles.logoutText}>로그아웃</Text>
       </TouchableOpacity>
-    </View>
+
+      <TouchableOpacity style={styles.deleteBtn} onPress={confirmDeleteAccount}>
+        <Text style={styles.deleteText}>회원 탈퇴</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
@@ -163,4 +235,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoutText: { color: "white", fontWeight: "700" },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748b",
+    marginBottom: 4,
+  },
+  linkRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  linkText: { color: "#334155", fontSize: 14 },
+  linkChevron: { color: "#cbd5e1", fontSize: 18 },
+  disclaimer: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+  },
+  disclaimerTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#94a3b8",
+    marginBottom: 4,
+  },
+  disclaimerText: { fontSize: 12, color: "#94a3b8", lineHeight: 18 },
+  deleteBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  deleteText: {
+    color: "#94a3b8",
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
 });

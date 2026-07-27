@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_admin
+from app.api.deps import get_current_user, require_admin
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.password_reset import PasswordResetRequest
@@ -18,6 +18,22 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """환자 본인 계정 삭제(회원 탈퇴). 프로필/보고/설문/마일리지/InBody/알림/조회 등
+    연관 데이터는 DB의 ON DELETE CASCADE 로 함께 삭제된다."""
+    if user.role != UserRole.PATIENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="환자 계정만 탈퇴할 수 있습니다.",
+        )
+    db.query(User).filter(User.id == user.id).delete(synchronize_session=False)
+    db.commit()
 
 
 @router.post("/login", response_model=TokenResponse)

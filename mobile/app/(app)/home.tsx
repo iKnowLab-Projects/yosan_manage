@@ -124,6 +124,10 @@ export default function HomeScreen() {
         />
       </View>
 
+      <Text style={styles.disclaimer}>
+        본 앱은 의료기기가 아니며 정보는 참고용입니다. 의료적 판단은 전문의와 상담하세요.
+      </Text>
+
       <View style={{ height: 24 }} />
     </ScrollView>
   );
@@ -199,6 +203,13 @@ const styles = StyleSheet.create({
   },
   historyBtnText: { color: "#2563eb", fontWeight: "700" },
 
+  disclaimer: {
+    marginTop: 16,
+    fontSize: 11,
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 16,
+  },
   shortcutRow: { flexDirection: "row", gap: 12 },
   shortcut: {
     flex: 1,
