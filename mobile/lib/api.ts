@@ -168,6 +168,8 @@ export type MileageMonth = {
   completed_at?: string | null;
   note?: string | null;
   survey_submission_id?: number | null;
+  calendar_ym?: string | null; // 이 월차의 달력 월 (YYYY-MM)
+  missed?: boolean; // 지난 달인데 미완료 → 빨간 X
 };
 
 export type MileageSummary = {

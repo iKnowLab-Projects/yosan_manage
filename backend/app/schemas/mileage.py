@@ -12,6 +12,8 @@ class MileageMonth(BaseModel):
     completed_at: Optional[datetime] = None
     note: Optional[str] = None
     survey_submission_id: Optional[int] = None
+    calendar_ym: Optional[str] = None  # 이 월차의 달력 월 (YYYY-MM)
+    missed: bool = False  # 달력상 지난 달인데 미완료 → 빨간 X
 
 
 class MileageSummary(BaseModel):
