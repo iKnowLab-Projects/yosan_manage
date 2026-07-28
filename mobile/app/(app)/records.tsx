@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { api, InBodyResult } from "@/lib/api";
-import { resolveImage } from "@/lib/images";
+import { resolveImage, tabIcons } from "@/lib/images";
 import LineChart, { ChartPoint } from "@/components/LineChart";
 
 // 추이 그래프로 보여줄 지표 (체중·체지방률·BMI)
@@ -130,7 +130,11 @@ export default function RecordsScreen() {
 
       {items.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🧍</Text>
+          <Image
+            source={tabIcons.records}
+            style={styles.emptyIcon}
+            resizeMode="contain"
+          />
           <Text style={styles.emptyTitle}>아직 등록된 InBody 결과가 없습니다</Text>
           <Text style={styles.emptyBody}>
             다음 병원 방문 시 측정 결과가 등록됩니다.
@@ -326,7 +330,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     alignItems: "center",
   },
-  emptyEmoji: { fontSize: 40, marginBottom: 10 },
+  emptyIcon: { width: 56, height: 56, marginBottom: 10 },
   emptyTitle: { fontSize: 15, fontWeight: "700", color: "#334155" },
   emptyBody: { fontSize: 13, color: "#94a3b8", marginTop: 6 },
 

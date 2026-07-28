@@ -41,14 +41,6 @@ function TabIcon({ source, focused }: { source: any; focused: boolean }) {
   );
 }
 
-// 전용 PNG 아이콘이 없는 신규 탭(내 기록·정보)은 이모지 글리프로 표현한다.
-// 다른 탭과 크기를 맞추고 활성/비활성은 동일하게 투명도로 표현.
-function TabGlyph({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.45 }}>{glyph}</Text>
-  );
-}
-
 export default function AppLayout() {
   useEffect(() => {
     registerForPushNotificationsAsync().catch(() => {});
@@ -97,7 +89,9 @@ export default function AppLayout() {
         options={{
           title: "내 기록",
           tabBarLabel: "내 기록",
-          tabBarIcon: ({ focused }) => <TabGlyph glyph="🧍" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon source={tabIcons.records} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
