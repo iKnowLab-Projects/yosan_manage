@@ -34,6 +34,14 @@ module.exports = ({ config }) => {
       ...(config.updates || {}),
       url: `https://u.expo.dev/${p.projectId}`,
     },
+    android: {
+      ...(config.android || {}),
+      // EAS 빌드에선 파일 환경변수 GOOGLE_SERVICES_JSON(비밀)로 제공,
+      // 로컬 개발에선 app.json 의 ./google-services.json 경로 사용.
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ||
+        (config.android && config.android.googleServicesFile),
+    },
     extra: {
       ...(config.extra || {}),
       eas: {
