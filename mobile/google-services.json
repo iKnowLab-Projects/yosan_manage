@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "385735247035",
+    "project_id": "yosan-monitor",
+    "storage_bucket": "yosan-monitor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:385735247035:android:e572fe3048e4ffcb36159e",
+        "android_client_info": {
+          "package_name": "com.yosan.monitor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqnsqaKUdvZu2lxnE4NCYj3YbwABVCinI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
