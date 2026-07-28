@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { api, setSession } from "@/lib/api";
+import { SUPPORT_PHONE } from "@/lib/support";
 
 type LoginResp = {
   access_token: string;
@@ -104,7 +105,9 @@ export default function Login() {
       <Text style={styles.help}>
         문의는 관리자에게 연락해 주세요.
       </Text>
-      <Text style={styles.phone}>010-XXXX-XXXX</Text>
+      {SUPPORT_PHONE.trim().length > 0 && (
+        <Text style={styles.phone}>{SUPPORT_PHONE}</Text>
+      )}
     </KeyboardAvoidingView>
   );
 }

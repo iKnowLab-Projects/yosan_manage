@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 
 export const API_BASE: string =
@@ -13,8 +14,47 @@ export type StoredUser = {
   role: string;
 };
 
+// 민감정보(인증 토큰·사용자 정보)는 SecureStore(iOS Keychain / Android Keystore)에 저장한다.
+// 구버전(AsyncStorage 평문)에서 올라온 사용자는 최초 접근 시 자동으로 이전하고 평문 값을 지운다.
+async function secureGet(key: string): Promise<string | null> {
+  try {
+    const v = await SecureStore.getItemAsync(key);
+    if (v != null) return v;
+  } catch {
+    // SecureStore 미지원 환경 → 아래 AsyncStorage 폴백
+  }
+  const legacy = await AsyncStorage.getItem(key);
+  if (legacy != null) {
+    try {
+      await SecureStore.setItemAsync(key, legacy);
+      await AsyncStorage.removeItem(key);
+    } catch {
+      // 이전 실패 시 폴백 값 그대로 사용
+    }
+    return legacy;
+  }
+  return null;
+}
+
+async function secureSet(key: string, value: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(key, value);
+  } catch {
+    await AsyncStorage.setItem(key, value);
+  }
+}
+
+async function secureDelete(key: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch {
+    // 무시
+  }
+  await AsyncStorage.removeItem(key); // 레거시 평문 값도 함께 제거
+}
+
 export async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem(TOKEN_KEY);
+  return secureGet(TOKEN_KEY);
 }
 
 // 콘텐츠 조회 1회 기록 (fire-and-forget, 실패 무시)
@@ -33,17 +73,18 @@ export async function recordView(
 }
 
 export async function setSession(token: string, user: StoredUser) {
-  await AsyncStorage.setItem(TOKEN_KEY, token);
-  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  await secureSet(TOKEN_KEY, token);
+  await secureSet(USER_KEY, JSON.stringify(user));
 }
 
 export async function getStoredUser(): Promise<StoredUser | null> {
-  const raw = await AsyncStorage.getItem(USER_KEY);
+  const raw = await secureGet(USER_KEY);
   return raw ? (JSON.parse(raw) as StoredUser) : null;
 }
 
 export async function clearSession() {
-  await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+  await secureDelete(TOKEN_KEY);
+  await secureDelete(USER_KEY);
 }
 
 export class ApiError extends Error {

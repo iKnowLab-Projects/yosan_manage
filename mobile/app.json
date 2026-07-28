@@ -29,7 +29,7 @@
     "android": {
       "package": "com.yosan.monitor",
       "useNextNotificationsApi": true,
-      "usesCleartextTraffic": true,
+      "usesCleartextTraffic": false,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./image/logo_icon_refac_remove.png",
