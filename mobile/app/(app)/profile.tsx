@@ -11,9 +11,10 @@ import {
 } from "react-native";
 import { api, clearSession } from "@/lib/api";
 
-// TODO(배포 전): 실제 호스팅된 URL로 교체하세요. 스토어 리스팅에도 동일 URL 필요.
-const PRIVACY_URL = "https://iknowlab-projects.github.io/yosan_manage/privacy";
-const TERMS_URL = "https://iknowlab-projects.github.io/yosan_manage/terms";
+// GitHub Pages(저장소 /docs)로 호스팅되는 정책 문서. Pages 활성화 후 접속 가능.
+const PRIVACY_URL =
+  "https://iknowlab-projects.github.io/yosan_manage/privacy.html";
+const TERMS_URL = "https://iknowlab-projects.github.io/yosan_manage/terms.html";
 const MEDICAL_DISCLAIMER =
   "본 앱은 의료기기가 아니며, 제공되는 정보와 마일리지는 건강관리 참고용입니다. " +
   "진단·치료 등 의료적 판단은 반드시 전문의와 상담하세요.";

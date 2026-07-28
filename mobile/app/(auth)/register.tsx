@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,10 @@ import {
   View,
 } from "react-native";
 import { api } from "@/lib/api";
+
+const PRIVACY_URL =
+  "https://iknowlab-projects.github.io/yosan_manage/privacy.html";
+const TERMS_URL = "https://iknowlab-projects.github.io/yosan_manage/terms.html";
 
 type RegisterPayload = {
   email: string;
@@ -42,6 +47,7 @@ export default function Register() {
     medications: "",
   });
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const set = (k: keyof typeof form, v: string) =>
     setForm((s) => ({ ...s, [k]: v }));
@@ -49,6 +55,13 @@ export default function Register() {
   async function submit() {
     if (!form.email || !form.password || !form.name) {
       Alert.alert("입력 오류", "이메일, 비밀번호, 이름은 필수입니다.");
+      return;
+    }
+    if (!agreed) {
+      Alert.alert(
+        "동의 필요",
+        "개인정보 처리방침 및 이용약관에 동의해야 가입할 수 있습니다.",
+      );
       return;
     }
     if (form.password.length < 6) {
@@ -227,7 +240,37 @@ export default function Register() {
         </Section>
 
         <TouchableOpacity
-          style={[styles.button, loading && { opacity: 0.6 }]}
+          style={styles.consent}
+          activeOpacity={0.8}
+          onPress={() => setAgreed((a) => !a)}
+        >
+          <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
+            {agreed && <Text style={styles.checkboxMark}>✓</Text>}
+          </View>
+          <Text style={styles.consentText}>
+            <Text
+              style={styles.consentLink}
+              onPress={() => Linking.openURL(PRIVACY_URL)}
+            >
+              개인정보 처리방침
+            </Text>
+            {" 및 "}
+            <Text
+              style={styles.consentLink}
+              onPress={() => Linking.openURL(TERMS_URL)}
+            >
+              이용약관
+            </Text>
+            에 동의하며, 건강(민감)정보의 수집·이용에 동의합니다. (필수)
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.disclaimer}>
+          본 앱은 의료기기가 아니며 정보는 참고용입니다. 의료적 판단은 전문의와 상담하세요.
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.button, (loading || !agreed) && { opacity: 0.5 }]}
           onPress={submit}
           disabled={loading}
         >
@@ -338,4 +381,32 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "white", fontWeight: "700", fontSize: 16 },
   linkText: { color: "#2563eb", fontWeight: "600" },
+  consent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#cbd5e1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  checkboxOn: { backgroundColor: "#2563eb", borderColor: "#1d4ed8" },
+  checkboxMark: { color: "white", fontWeight: "800", fontSize: 13 },
+  consentText: { flex: 1, fontSize: 13, color: "#475569", lineHeight: 19 },
+  consentLink: { color: "#2563eb", fontWeight: "600" },
+  disclaimer: {
+    fontSize: 11,
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 16,
+    marginBottom: 10,
+  },
 });
