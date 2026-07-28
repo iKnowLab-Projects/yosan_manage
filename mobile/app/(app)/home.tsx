@@ -10,8 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import type { ImageSourcePropType } from "react-native";
 import { api, PatientMe } from "@/lib/api";
-import { logoIcon } from "@/lib/images";
+import { logoIcon, tabIcons } from "@/lib/images";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -108,17 +109,17 @@ export default function HomeScreen() {
       {/* ===== 바로가기 ===== */}
       <View style={styles.shortcutRow}>
         <Shortcut
-          emoji="🏅"
+          icon={tabIcons.mileage}
           label="마일리지"
           onPress={() => router.push("/(app)/mileage")}
         />
         <Shortcut
-          emoji="🧍"
+          icon={tabIcons.records}
           label="내 기록"
           onPress={() => router.push("/(app)/records")}
         />
         <Shortcut
-          emoji="📰"
+          icon={tabIcons.info}
           label="정보"
           onPress={() => router.push("/(app)/info")}
         />
@@ -143,17 +144,17 @@ function InfoCell({ label, value }: { label: string; value: string }) {
 }
 
 function Shortcut({
-  emoji,
+  icon,
   label,
   onPress,
 }: {
-  emoji: string;
+  icon: ImageSourcePropType;
   label: string;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity style={styles.shortcut} onPress={onPress} activeOpacity={0.85}>
-      <Text style={styles.shortcutEmoji}>{emoji}</Text>
+      <Image source={icon} style={styles.shortcutIcon} resizeMode="contain" />
       <Text style={styles.shortcutLabel}>{label}</Text>
     </TouchableOpacity>
   );
@@ -220,6 +221,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: "center",
   },
-  shortcutEmoji: { fontSize: 26, marginBottom: 6 },
+  shortcutIcon: { width: 30, height: 30, marginBottom: 6 },
   shortcutLabel: { fontSize: 13, fontWeight: "600", color: "#334155" },
 });

@@ -6,6 +6,7 @@ export const logoIcon: ImageSourcePropType = require("../image/logo_icon_refac_r
 
 export const tabIcons = {
   mileage: require("../image/milege2.png"),
+  records: require("../image/inbody.png"),
   alarm: require("../image/alarm2.png"),
   home: require("../image/home2.png"),
   info: require("../image/info.png"),
