@@ -44,6 +44,11 @@ module.exports = ({ config }) => {
     },
     extra: {
       ...(config.extra || {}),
+      // 운영 빌드는 고정 HTTPS 도메인을 EAS 환경변수 API_BASE 로 주입한다.
+      // (미설정 시 app.json 의 apiBase 사용 → 개발용 임시 터널)
+      apiBase:
+        process.env.API_BASE ||
+        (config.extra && config.extra.apiBase),
       eas: {
         ...((config.extra && config.extra.eas) || {}),
         projectId: p.projectId,

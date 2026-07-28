@@ -12,9 +12,9 @@ import {
   View,
 } from "react-native";
 import { api, MileageMonth, MileageSummary, SurveySubmission } from "@/lib/api";
+import { dialablePhone } from "@/lib/support";
 
 const CYCLE = 6;
-const ADMIN_PHONE = "010-XXXX-XXXX";
 
 // 현재 달(YYYY-MM) 키 — 설문은 한 달에 1회만 제출 가능
 function currentMonthKey(): string {
@@ -108,8 +108,8 @@ export default function MileageScreen() {
         {
           text: "전화 연결",
           onPress: () => {
-            const digits = ADMIN_PHONE.replace(/[^0-9]/g, "");
-            if (!digits || digits.includes("X")) {
+            const digits = dialablePhone();
+            if (!digits) {
               Alert.alert(
                 "전화번호 미설정",
                 "관리자 연락처가 아직 설정되지 않았습니다.\n관리자에게 문의해 주세요.",
