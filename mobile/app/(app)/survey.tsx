@@ -16,6 +16,8 @@ import {
   SurveySubmission,
   SurveyTemplate,
 } from "@/lib/api";
+import FontSizeControl from "@/components/FontSizeControl";
+import { useFontScale } from "@/lib/fontScale";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -48,6 +50,8 @@ export default function SurveyScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { scale } = useFontScale();
+  const styles = useMemo(() => makeStyles(scale), [scale]);
 
   const load = async () => {
     setLoading(true);
@@ -157,6 +161,10 @@ export default function SurveyScreen() {
   if (thisMonthSubmission) {
     return (
       <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.fontCard}>
+          <Text style={styles.fontCardLabel}>글씨 크기</Text>
+          <FontSizeControl />
+        </View>
         <View style={styles.doneBanner}>
           <Text style={styles.doneTitle}>✅ 이번 달 설문 제출 완료</Text>
           <Text style={styles.doneSub}>
@@ -219,6 +227,10 @@ export default function SurveyScreen() {
   // 이번 달 미제출 — 작성 폼 노출
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.fontCard}>
+        <Text style={styles.fontCardLabel}>글씨 크기</Text>
+        <FontSizeControl />
+      </View>
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>{template.name}</Text>
         <Text style={styles.bannerSub}>{template.description}</Text>
@@ -310,33 +322,50 @@ export default function SurveyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// 글씨 크기 배율(scale)에 따라 폰트 크기가 커지는 동적 스타일.
+function makeStyles(scale: number) {
+  const fs = (n: number) => Math.round(n * scale);
+  return StyleSheet.create({
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
-  errorTitle: { fontWeight: "700", color: "#991b1b", marginBottom: 6 },
-  errorBody: { color: "#475569", textAlign: "center", marginBottom: 12 },
+  errorTitle: { fontWeight: "700", color: "#991b1b", marginBottom: 6, fontSize: fs(15) },
+  errorBody: { color: "#475569", textAlign: "center", marginBottom: 12, fontSize: fs(14) },
   retry: {
     backgroundColor: "#2563eb",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
   },
-  retryText: { color: "white", fontWeight: "600" },
+  retryText: { color: "white", fontWeight: "600", fontSize: fs(14) },
 
   container: { padding: 16, paddingBottom: 80, backgroundColor: "#f8fafc" },
+  fontCard: {
+    backgroundColor: "white",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  fontCardLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748b",
+    marginBottom: 8,
+  },
   banner: {
     backgroundColor: "#eef6ff",
     borderRadius: 10,
     padding: 16,
     marginBottom: 14,
   },
-  bannerTitle: { fontSize: 17, fontWeight: "700", color: "#1d4ed8" },
-  bannerSub: { color: "#475569", marginTop: 4 },
-  bannerMeta: { color: "#64748b", marginTop: 8, fontSize: 13 },
+  bannerTitle: { fontSize: fs(17), fontWeight: "700", color: "#1d4ed8" },
+  bannerSub: { color: "#475569", marginTop: 4, fontSize: fs(14) },
+  bannerMeta: { color: "#64748b", marginTop: 8, fontSize: fs(13) },
 
   doneBanner: {
     backgroundColor: "#dcfce7",
@@ -346,13 +375,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#bbf7d0",
   },
-  doneTitle: { fontSize: 18, fontWeight: "700", color: "#15803d" },
-  doneSub: { color: "#166534", marginTop: 6, fontSize: 14 },
+  doneTitle: { fontSize: fs(18), fontWeight: "700", color: "#15803d" },
+  doneSub: { color: "#166534", marginTop: 6, fontSize: fs(14) },
   doneNote: {
     color: "#15803d",
     marginTop: 10,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: fs(13),
+    lineHeight: fs(18),
   },
 
   section: {
@@ -364,13 +393,13 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: fs(14),
     fontWeight: "700",
     color: "#0f172a",
     marginBottom: 10,
   },
   question: { marginBottom: 14 },
-  qText: { fontSize: 14, color: "#1e293b", marginBottom: 8, lineHeight: 20 },
+  qText: { fontSize: fs(14), color: "#1e293b", marginBottom: 8, lineHeight: fs(20) },
   options: { gap: 6 },
   opt: {
     flexDirection: "row",
@@ -394,25 +423,25 @@ const styles = StyleSheet.create({
     borderColor: "#2563eb",
     backgroundColor: "#2563eb",
   },
-  optText: { fontSize: 14, color: "#334155", flex: 1 },
+  optText: { fontSize: fs(14), color: "#334155", flex: 1 },
 
   notes: {
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 8,
     padding: 12,
-    fontSize: 14,
+    fontSize: fs(14),
     minHeight: 80,
   },
-  notesView: { fontSize: 14, color: "#334155", lineHeight: 20 },
+  notesView: { fontSize: fs(14), color: "#334155", lineHeight: fs(20) },
 
   answerRow: {
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
-  answerQ: { fontSize: 13, color: "#334155", marginBottom: 4 },
-  answerA: { fontSize: 13, color: "#0f172a", fontWeight: "600" },
+  answerQ: { fontSize: fs(13), color: "#334155", marginBottom: 4 },
+  answerA: { fontSize: fs(13), color: "#0f172a", fontWeight: "600" },
 
   submit: {
     backgroundColor: "#2563eb",
@@ -421,7 +450,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
-  submitText: { color: "white", fontWeight: "700", fontSize: 16 },
+  submitText: { color: "white", fontWeight: "700", fontSize: fs(16) },
 
   histRow: {
     flexDirection: "row",
@@ -430,6 +459,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
-  histDate: { fontWeight: "600", color: "#1e293b" },
-  histMeta: { color: "#64748b", fontSize: 13 },
-});
+  histDate: { fontWeight: "600", color: "#1e293b", fontSize: fs(14) },
+  histMeta: { color: "#64748b", fontSize: fs(13) },
+  });
+}

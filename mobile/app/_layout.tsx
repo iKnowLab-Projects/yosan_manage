@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import UpdateGate from "@/components/UpdateGate";
 import { setUnauthorizedHandler } from "@/lib/api";
+import { FontScaleProvider } from "@/lib/fontScale";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -17,9 +18,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <UpdateGate>
-        <Stack screenOptions={{ headerShown: false }} />
-      </UpdateGate>
+      <FontScaleProvider>
+        <UpdateGate>
+          <Stack screenOptions={{ headerShown: false }} />
+        </UpdateGate>
+      </FontScaleProvider>
     </SafeAreaProvider>
   );
 }

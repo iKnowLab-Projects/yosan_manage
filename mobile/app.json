@@ -3,7 +3,7 @@
     "name": "통풍식이 마일리지",
     "slug": "yosan-monitor",
     "scheme": "yosan",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "platforms": [
@@ -17,7 +17,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.yosan.monitor",
       "infoPlist": {
         "UIBackgroundModes": [
