@@ -38,6 +38,9 @@ backend/uploads/
 # 터널 자동화 런타임 로그
 scripts/.tunnel-logs/
 
+# 심사 제출 체크리스트(데모 계정 비밀번호 포함) — public 노출 금지, 로컬 전용
+docs/store-submission-ios.md
+
 # Firebase / FCM 비밀 키 (절대 커밋 금지)
 # 주: google-services.json 은 Android 클라이언트 구성 파일(APK 에 어차피 포함)로,
 #     사용자 승인하에 저장소에 커밋한다. 아래 서버측 비밀 키만 계속 무시.
