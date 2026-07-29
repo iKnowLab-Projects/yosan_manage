@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { api, clearSession } from "@/lib/api";
+import FontSizeControl from "@/components/FontSizeControl";
 
 // GitHub Pages(저장소 /docs)로 호스팅되는 정책 문서. Pages 활성화 후 접속 가능.
 const PRIVACY_URL =
@@ -134,6 +135,12 @@ export default function Profile() {
       >
         <Text style={styles.historyBtnText}>나의 기록 보기</Text>
       </TouchableOpacity>
+
+      {/* 화면 설정 · 글씨 크기 */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>글씨 크기</Text>
+        <FontSizeControl />
+      </View>
 
       {/* 약관 및 정책 */}
       <View style={styles.card}>
