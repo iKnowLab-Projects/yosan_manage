@@ -114,11 +114,18 @@ export default function InfoScreen() {
                 })
               }
             >
-              <Image
-                source={resolveCardImage(c.image_key)}
-                style={styles.cardImage}
-                resizeMode="cover"
-              />
+              {c.image_key ? (
+                <Image
+                  source={resolveCardImage(c.image_key)}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.cardImage, styles.cardVideoThumb]}>
+                  <Text style={styles.cardVideoPlay}>▶</Text>
+                  <Text style={styles.cardVideoLabel}>동영상</Text>
+                </View>
+              )}
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {c.title}
@@ -231,6 +238,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cardImage: { width: "100%", height: 120, backgroundColor: "#f1f5f9" },
+  cardVideoThumb: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1e293b",
+  },
+  cardVideoPlay: { color: "white", fontSize: 26 },
+  cardVideoLabel: { color: "#cbd5e1", fontSize: 11, marginTop: 4 },
   cardBody: { padding: 10 },
   cardTitle: { fontSize: 14, fontWeight: "700", color: "#0f172a" },
   cardAuthor: { fontSize: 11, color: "#94a3b8", marginTop: 3 },

@@ -183,8 +183,14 @@ export default function CardNewsDetail() {
     );
   }
 
-  // images 가 비어 있으면 대표 이미지 1장으로 대체
-  const gallery = item.images && item.images.length > 0 ? item.images : [item.image_key];
+  // 이미지 목록 구성. 이미지 없이 동영상만 있는 카드도 허용(빈 배열).
+  const gallery =
+    item.images && item.images.length > 0
+      ? item.images
+      : item.image_key
+        ? [item.image_key]
+        : [];
+  const hasImages = gallery.length > 0;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
@@ -261,7 +267,8 @@ export default function CardNewsDetail() {
       style={{ backgroundColor: "#f8fafc" }}
       contentContainerStyle={{ paddingBottom: 32 }}
     >
-      {/* ===== 이미지 카드뉴스 (좌우 스크롤) ===== */}
+      {/* ===== 이미지 카드뉴스 (좌우 스크롤) — 동영상만 있는 카드는 생략 ===== */}
+      {hasImages && (
       <View>
         <ScrollView
           horizontal
@@ -301,6 +308,7 @@ export default function CardNewsDetail() {
           </>
         )}
       </View>
+      )}
 
       {/* ===== 글 영역 (이미지와 별개로 항상 보존) ===== */}
       <View style={styles.body}>
@@ -399,16 +407,25 @@ export default function CardNewsDetail() {
 
 // 첨부 동영상 재생 (expo-video). item 로드 후에만 렌더되므로 훅 규칙 안전.
 function VideoBlock({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (p) => {
+  // 소스를 명시적 { uri } 객체로 전달 + 네이티브 컨트롤 노출로 재생 안정화
+  const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
   });
   return (
-    <VideoView
-      style={styles.video}
-      player={player}
-      allowsFullscreen
-      contentFit="contain"
-    />
+    <View style={{ marginTop: 16 }}>
+      <VideoView
+        style={styles.video}
+        player={player}
+        nativeControls
+        allowsFullscreen
+        contentFit="contain"
+      />
+      <TouchableOpacity onPress={() => Linking.openURL(url)}>
+        <Text style={styles.videoFallback}>
+          재생이 안 되면 여기를 눌러 열기 ›
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -416,9 +433,15 @@ const styles = StyleSheet.create({
   video: {
     width: "100%",
     height: 220,
-    marginTop: 16,
     borderRadius: 10,
     backgroundColor: "#000",
+  },
+  videoFallback: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#2563eb",
+    fontWeight: "600",
+    textAlign: "center",
   },
   center: {
     flex: 1,
