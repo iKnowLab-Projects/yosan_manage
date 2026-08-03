@@ -63,9 +63,7 @@ export default function SurveyView() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>제출한 설문</Text>
-        <Text style={styles.bannerSub}>
-          {submission.survey_group}군 · 제출일 {submission.check_date}
-        </Text>
+        <Text style={styles.bannerSub}>제출일 {submission.check_date}</Text>
       </View>
 
       <View style={styles.section}>

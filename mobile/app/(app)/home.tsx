@@ -93,10 +93,6 @@ export default function HomeScreen() {
             label="신장"
             value={p.height_cm ? `${p.height_cm} cm` : "—"}
           />
-          <InfoCell
-            label="설문 그룹"
-            value={p.survey_group ? `${p.survey_group}군` : "—"}
-          />
         </View>
         <TouchableOpacity
           style={styles.historyBtn}

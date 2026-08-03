@@ -78,8 +78,8 @@ export default function InfoScreen() {
       >
         <Image source={logoIcon} style={styles.ytLogo} resizeMode="contain" />
         <View style={{ flex: 1 }}>
-          <Text style={styles.ytTitle}>1분 건강정보</Text>
-          <Text style={styles.ytSub}>CMIlab 유튜브에서 건강 영상 보기</Text>
+          <Text style={styles.ytTitle}>1분 통풍 정보</Text>
+          <Text style={styles.ytSub}>유튜브에서 통풍 관련 영상 보기</Text>
         </View>
         <Text style={styles.ytPlay}>▶</Text>
       </TouchableOpacity>
