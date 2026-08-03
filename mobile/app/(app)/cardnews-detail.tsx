@@ -407,8 +407,8 @@ export default function CardNewsDetail() {
 
 // 첨부 동영상 재생 (expo-video). item 로드 후에만 렌더되므로 훅 규칙 안전.
 function VideoBlock({ url }: { url: string }) {
-  // 소스를 명시적 { uri } 객체로 전달 + 네이티브 컨트롤 노출로 재생 안정화
-  const player = useVideoPlayer({ uri: url }, (p) => {
+  // 안정적인 문자열 소스로 전달(리렌더 시 재생성 방지) + 네이티브 컨트롤 노출
+  const player = useVideoPlayer(url, (p) => {
     p.loop = false;
   });
   return (
