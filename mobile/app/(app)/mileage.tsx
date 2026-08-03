@@ -85,6 +85,15 @@ export default function MileageScreen() {
 
   const onPressCompleted = useCallback(
     (m: MileageMonth) => {
+      // 이번 달에 제출한 설문만 열람 가능 — 해당 월이 지나면 확인 불가
+      const isThisMonth = m.calendar_ym === currentMonthKey();
+      if (!isThisMonth) {
+        Alert.alert(
+          "열람 불가",
+          "이번 달에 제출한 설문만 확인할 수 있어요.\n지난 달 설문은 열람할 수 없습니다.",
+        );
+        return;
+      }
       if (m.survey_submission_id) {
         router.push({
           pathname: "/(app)/survey-view",
@@ -187,19 +196,13 @@ export default function MileageScreen() {
         <Text style={styles.label}>마일리지 진행</Text>
         <Text style={styles.amount}>
           {summary.completed_count}
-          <Text style={styles.amountMax}> / {summary.total_months}월차</Text>
+          <Text style={styles.amountMax}> / {summary.total_months}개월차</Text>
         </Text>
-        <View style={styles.metaRow}>
-          <Meta
-            label="완료한 사이클"
-            value={`${summary.cycles_completed} / ${cycles.length}`}
-          />
-        </View>
+        <ProgressBar24 months={summary.months} />
       </View>
 
       <View style={styles.legend}>
         <LegendDot variant="small" label="매월 미션" />
-        <LegendDot variant="big" label="6개월 병원 방문" />
         <LegendDot variant="current" label="진행할 미션" />
         <LegendDot variant="missed" label="미실시(지난 달)" />
       </View>
@@ -219,7 +222,7 @@ export default function MileageScreen() {
             ←
           </Text>
         </Pressable>
-        <Text style={styles.cycleTitle}>{cycleIdx + 1}번째 사이클</Text>
+        <Text style={styles.cycleTitle}>{cycleIdx + 1}번째 주기</Text>
         <Pressable
           onPress={() =>
             setCycleIdx((i) => Math.min(cycles.length - 1, i + 1))
@@ -258,7 +261,7 @@ export default function MileageScreen() {
       </View>
 
       <Text style={styles.tapHint}>
-        완료(✓)된 달을 누르면 그 달에 제출한 설문을 볼 수 있어요.
+        이번 달에 작성한 원을 누르면 제출한 설문을 볼 수 있어요.
       </Text>
 
       {targetInThisCycle && (
@@ -312,7 +315,7 @@ function Circle({
 
   const label = (
     <Text style={[styles.cellMonth, showCurrent && styles.currentMonthLabel]}>
-      {month.month_index}월차
+      {month.month_index}개월차
     </Text>
   );
 
@@ -345,11 +348,21 @@ function Circle({
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+// 전체 진행 상황 progress bar — 24칸(회색). 설문/전화 완료 달=녹색, 지난 달 미실시=적색.
+function ProgressBar24({ months }: { months: MileageMonth[] }) {
+  const cells = Array.from({ length: 24 }, (_, i) => months[i]);
   return (
-    <View style={{ alignItems: "center" }}>
-      <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+    <View style={styles.progressWrap}>
+      {cells.map((m, i) => (
+        <View
+          key={i}
+          style={[
+            styles.progressCell,
+            m?.completed && styles.progressDone,
+            m && !m.completed && m.missed && styles.progressMissed,
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -418,6 +431,24 @@ const styles = StyleSheet.create({
   },
   metaLabel: { color: "#bfdbfe", fontSize: 12 },
   metaValue: { color: "white", fontSize: 16, fontWeight: "700", marginTop: 2 },
+
+  progressWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 12,
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.2)",
+  },
+  progressCell: {
+    flex: 1,
+    height: 14,
+    borderRadius: 3,
+    marginHorizontal: 1,
+    backgroundColor: "#cbd5e1", // 기본: 회색
+  },
+  progressDone: { backgroundColor: "#22c55e" }, // 완료: 녹색
+  progressMissed: { backgroundColor: "#ef4444" }, // 미실시(지난 달): 적색
 
   legend: {
     flexDirection: "row",

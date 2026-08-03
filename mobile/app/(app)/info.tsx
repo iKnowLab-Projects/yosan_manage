@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,9 @@ import {
   View,
 } from "react-native";
 import { api, Announcement, CardNews } from "@/lib/api";
-import { resolveCardImage } from "@/lib/images";
+import { resolveCardImage, logoIcon } from "@/lib/images";
+
+const YOUTUBE_URL = "https://www.youtube.com/@CMIlab-x3d";
 
 const CATEGORY_LABEL: Record<string, string> = {
   notice: "공지",
@@ -67,6 +70,20 @@ export default function InfoScreen() {
         />
       }
     >
+      {/* ===== 유튜브 배너 ===== */}
+      <TouchableOpacity
+        style={styles.ytBanner}
+        activeOpacity={0.85}
+        onPress={() => Linking.openURL(YOUTUBE_URL)}
+      >
+        <Image source={logoIcon} style={styles.ytLogo} resizeMode="contain" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ytTitle}>1분 건강정보</Text>
+          <Text style={styles.ytSub}>CMIlab 유튜브에서 건강 영상 보기</Text>
+        </View>
+        <Text style={styles.ytPlay}>▶</Text>
+      </TouchableOpacity>
+
       {/* ===== 카드뉴스 ===== */}
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>건강 카드뉴스</Text>
@@ -174,6 +191,21 @@ function EmptyBox({ text }: { text: string }) {
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  ytBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    padding: 12,
+    marginBottom: 18,
+    gap: 12,
+  },
+  ytLogo: { width: 44, height: 44, borderRadius: 10, backgroundColor: "white" },
+  ytTitle: { fontSize: 16, fontWeight: "800", color: "#1d4ed8" },
+  ytSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  ytPlay: { fontSize: 18, color: "#ef4444", fontWeight: "800", marginLeft: 4 },
   sectionHead: {
     flexDirection: "row",
     justifyContent: "space-between",

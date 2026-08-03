@@ -21,6 +21,7 @@ const TREND_METRICS: {
   color: string;
 }[] = [
   { key: "weight_kg", title: "체중", unit: "kg", color: "#2563eb" },
+  { key: "skeletal_muscle_mass", title: "골격근량", unit: "kg", color: "#7c3aed" },
   { key: "percent_body_fat", title: "체지방률", unit: "%", color: "#ef4444" },
   { key: "bmi", title: "BMI", unit: "", color: "#16a34a" },
 ];
