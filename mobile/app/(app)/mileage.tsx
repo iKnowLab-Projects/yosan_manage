@@ -83,6 +83,15 @@ export default function MileageScreen() {
     return cur?.month_index ?? null;
   }, [summary]);
 
+  // 경과한 개월수 = 완료 + 미실시(지난 달) + 진행 중인 이번 달.
+  // 설문을 미실시해도 시간이 지나면 카운팅이 올라간다.
+  const elapsedMonths = useMemo(() => {
+    if (!summary) return 0;
+    return summary.months.filter(
+      (m) => m.completed || m.missed || m.month_index === currentMonthIndex,
+    ).length;
+  }, [summary, currentMonthIndex]);
+
   const onPressCompleted = useCallback(
     (m: MileageMonth) => {
       // 이번 달에 제출한 설문만 열람 가능 — 해당 월이 지나면 확인 불가
@@ -195,10 +204,13 @@ export default function MileageScreen() {
       <View style={styles.headerCard}>
         <Text style={styles.label}>마일리지 진행</Text>
         <Text style={styles.amount}>
-          {summary.completed_count}
+          {elapsedMonths}
           <Text style={styles.amountMax}> / {summary.total_months}개월차</Text>
         </Text>
-        <ProgressBar24 months={summary.months} />
+        <ProgressBar24
+          months={summary.months}
+          currentIndex={currentMonthIndex}
+        />
       </View>
 
       <View style={styles.legend}>
@@ -348,21 +360,33 @@ function Circle({
   );
 }
 
-// 전체 진행 상황 progress bar — 24칸(회색). 설문/전화 완료 달=녹색, 지난 달 미실시=적색.
-function ProgressBar24({ months }: { months: MileageMonth[] }) {
+// 전체 진행 상황 progress bar — 24칸(회색). 완료=녹색, 지난 달 미실시=적색,
+// 진행 중인 이번 달=파란색(경과 카운팅에 포함).
+function ProgressBar24({
+  months,
+  currentIndex,
+}: {
+  months: MileageMonth[];
+  currentIndex: number | null;
+}) {
   const cells = Array.from({ length: 24 }, (_, i) => months[i]);
   return (
     <View style={styles.progressWrap}>
-      {cells.map((m, i) => (
-        <View
-          key={i}
-          style={[
-            styles.progressCell,
-            m?.completed && styles.progressDone,
-            m && !m.completed && m.missed && styles.progressMissed,
-          ]}
-        />
-      ))}
+      {cells.map((m, i) => {
+        const isCurrent =
+          !!m && !m.completed && !m.missed && m.month_index === currentIndex;
+        return (
+          <View
+            key={i}
+            style={[
+              styles.progressCell,
+              m?.completed && styles.progressDone,
+              m && !m.completed && m.missed && styles.progressMissed,
+              isCurrent && styles.progressCurrent,
+            ]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -449,6 +473,7 @@ const styles = StyleSheet.create({
   },
   progressDone: { backgroundColor: "#22c55e" }, // 완료: 녹색
   progressMissed: { backgroundColor: "#ef4444" }, // 미실시(지난 달): 적색
+  progressCurrent: { backgroundColor: "#60a5fa" }, // 진행 중인 이번 달: 파란색
 
   legend: {
     flexDirection: "row",

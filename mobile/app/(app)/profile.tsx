@@ -131,9 +131,9 @@ export default function Profile() {
       </View>
       <TouchableOpacity
         style={styles.historyBtn}
-        onPress={() => router.push("/(app)/history")}
+        onPress={() => router.push("/(app)/meal-scores")}
       >
-        <Text style={styles.historyBtnText}>나의 기록 보기</Text>
+        <Text style={styles.historyBtnText}>내 기록</Text>
       </TouchableOpacity>
 
       {/* 화면 설정 · 글씨 크기 */}
