@@ -12,15 +12,16 @@
 - `eas-cli` 설치 + `eas login` 완료 (계정 인증 캐시가 있어야 무인 실행 가능)
 - 백엔드가 `localhost:26610` 에서 구동 중 — `cd backend && docker compose up`
 
-포트/채널을 바꾸려면 스크립트 상단의 `Port`/`$PORT`, `AndroidBranch`/`IosBranch` 를 수정하세요.
+포트는 스크립트 상단의 `Port`/`$PORT` 로, 배포 채널(브랜치)은
+`mobile/package.json` 의 `deploy:android`/`deploy:ios` 스크립트로 관리합니다.
 
 ## 이중 프로젝트 배포 (Android=내 것 / iOS=동료 것)
 같은 소스코드를 두 Expo 프로젝트로 배포합니다. `mobile/app.config.js` 가 환경변수
 `APP_TARGET` 으로 프로젝트 정체성(owner·projectId·updates.url)을 전환합니다.
 
-| 플랫폼 | Expo 프로젝트 | 채널 |
+| 플랫폼 | Expo 프로젝트 | 채널(브랜치) |
 |---|---|---|
-| Android | `ghkook / 32d09c89…` (내 것) | `preview` |
+| Android | `ghkook / 32d09c89…` (내 것) | `production` |
 | iOS(TestFlight) | `ghkooks-team / cf97fda0…` (동료) | `production` |
 
 - 이 스크립트는 apiBase 갱신 후 **양쪽 프로젝트에 모두** `eas update` 합니다
@@ -28,16 +29,18 @@
 - **수동 배포는 `mobile/` 에서 npm 스크립트로** (플랫폼별로 명확, env var 신경 안 써도 됨):
   ```powershell
   cd mobile
-  npm run deploy:android      # Android → 내 프로젝트(ghkook), preview
+  npm run deploy:android      # Android → 내 프로젝트(ghkook), production
   npm run deploy:ios          # iOS → 동료 프로젝트(ghkooks-team), production
   npm run deploy:both         # 둘 다
   # 메시지 지정:   npm run deploy:ios -- --message "설명"
   # 배포 확인:     npm run updates:android  /  npm run updates:ios
-  # iOS 새 빌드:   npm run build:ios  →  npm run submit:ios
+  # 새 빌드:       npm run build:android  /  npm run build:ios  /  npm run build:both
+  # iOS 제출:      npm run submit:ios   (Android .aab 는 Play Console 수동 업로드)
   ```
   (내부적으로 `cross-env APP_TARGET=…` 으로 app.config.js 프로젝트를 전환합니다.)
 - iOS 프로젝트에 발행하려면 동료가 당신을 그 프로젝트 **멤버로 초대**해야 합니다.
-- runtimeVersion 은 양쪽 빌드 모두 `0.1.0` 이라 매칭됩니다(네이티브 의존성 미추가 → JS OTA 호환).
+- 현재 앱 버전은 **0.2.2**. runtimeVersion 정책은 `appVersion` 이라, OTA 는 같은
+  0.2.2 빌드에만 적용됩니다. 네이티브 변경(모듈/설정) 시에는 버전을 올려 **재빌드**해야 합니다.
 
 ---
 
