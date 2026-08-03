@@ -195,31 +195,6 @@ export default function SurveyScreen() {
           </View>
         ) : null}
 
-        {history.length > 1 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>이전 제출 이력</Text>
-            {history
-              .filter((h) => h.id !== thisMonthSubmission.id)
-              .slice(0, 5)
-              .map((h) => (
-                <TouchableOpacity
-                  key={h.id}
-                  style={styles.histRow}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/survey-view",
-                      params: { id: String(h.id) },
-                    })
-                  }
-                >
-                  <Text style={styles.histDate}>{h.check_date}</Text>
-                  <Text style={styles.histMeta}>
-                    {h.survey_group}군 · 응답 {h.answers.length}개 ›
-                  </Text>
-                </TouchableOpacity>
-              ))}
-          </View>
-        )}
       </ScrollView>
     );
   }
@@ -296,28 +271,6 @@ export default function SurveyScreen() {
         </Text>
       </TouchableOpacity>
 
-      {history.length > 0 && (
-        <View style={[styles.section, { marginTop: 8 }]}>
-          <Text style={styles.sectionTitle}>이전 제출 이력</Text>
-          {history.slice(0, 5).map((h) => (
-            <TouchableOpacity
-              key={h.id}
-              style={styles.histRow}
-              onPress={() =>
-                router.push({
-                  pathname: "/(app)/survey-view",
-                  params: { id: String(h.id) },
-                })
-              }
-            >
-              <Text style={styles.histDate}>{h.check_date}</Text>
-              <Text style={styles.histMeta}>
-                {h.survey_group}군 · 응답 {h.answers.length}개 ›
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
     </ScrollView>
   );
 }
