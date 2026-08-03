@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     board,
     cardnews,
     inbody,
+    meal_scores,
     mileage,
     notifications,
     patients,
@@ -24,5 +25,6 @@ api_router.include_router(mileage.router)
 api_router.include_router(board.router)
 api_router.include_router(cardnews.router)
 api_router.include_router(inbody.router)
+api_router.include_router(meal_scores.router)
 api_router.include_router(uploads.router)
 api_router.include_router(views.router)

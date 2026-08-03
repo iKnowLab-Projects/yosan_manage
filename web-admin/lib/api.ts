@@ -199,6 +199,7 @@ export type CardNews = {
   images: string[];
   video_key?: string | null;
   link_url?: string | null;
+  target_group: string; // 'B' | 'C' | 'common'
   display_order: number;
   is_published: boolean;
   created_at: string;
@@ -214,6 +215,7 @@ export type CardNewsIn = {
   images: string[];
   video_key?: string | null;
   link_url?: string | null;
+  target_group: string;
   display_order: number;
   is_published: boolean;
 };
@@ -223,6 +225,7 @@ export type Announcement = {
   title: string;
   body: string;
   category: string; // notice | faq
+  target_group: string; // 'B' | 'C' | 'common'
   is_pinned: boolean;
   is_published: boolean;
   created_at: string;
@@ -233,9 +236,52 @@ export type AnnouncementIn = {
   title: string;
   body: string;
   category: string;
+  target_group: string;
   is_pinned: boolean;
   is_published: boolean;
 };
+
+// 노출 대상 설문군 옵션 (카드뉴스·공지 공통)
+export const TARGET_GROUP_OPTIONS: { value: string; label: string }[] = [
+  { value: "common", label: "공통(전체)" },
+  { value: "B", label: "B군 전용" },
+  { value: "C", label: "C군 전용" },
+];
+
+// ---------- 식사 점수(월별) ----------
+export type MealScore = {
+  id: number;
+  patient_id: number;
+  year_month: string; // 'YYYY-MM'
+  score: number;
+  comment?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MealScoreIn = {
+  year_month: string;
+  score: number;
+  comment?: string | null;
+};
+
+export async function listMealScores(patientId: number): Promise<MealScore[]> {
+  return api<MealScore[]>(`/api/v1/meal-scores/patient/${patientId}`);
+}
+
+export async function upsertMealScore(
+  patientId: number,
+  payload: MealScoreIn
+): Promise<MealScore> {
+  return api<MealScore>(`/api/v1/meal-scores/patient/${patientId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMealScore(scoreId: number): Promise<void> {
+  await api<void>(`/api/v1/meal-scores/${scoreId}`, { method: "DELETE" });
+}
 
 export type ViewSummary = {
   cardnews_total: number;

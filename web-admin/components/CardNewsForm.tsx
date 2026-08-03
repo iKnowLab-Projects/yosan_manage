@@ -1,7 +1,13 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
-import { assetUrl, CardNews, CardNewsIn, uploadFile } from "@/lib/api";
+import {
+  assetUrl,
+  CardNews,
+  CardNewsIn,
+  TARGET_GROUP_OPTIONS,
+  uploadFile,
+} from "@/lib/api";
 
 const inputCls =
   "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500";
@@ -24,6 +30,9 @@ export default function CardNewsForm({
     String(initial?.display_order ?? 0)
   );
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? true);
+  const [targetGroup, setTargetGroup] = useState(
+    initial?.target_group ?? "common"
+  );
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [videoKey, setVideoKey] = useState<string | null>(
     initial?.video_key ?? null
@@ -105,6 +114,7 @@ export default function CardNewsForm({
         images,
         video_key: videoKey,
         link_url: linkUrl.trim() || null,
+        target_group: targetGroup,
         display_order: Number(displayOrder) || 0,
         is_published: isPublished,
       });
@@ -133,7 +143,7 @@ export default function CardNewsForm({
         />
       </label>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <label className="block">
           <span className="text-sm text-slate-600">게시자</span>
           <input
@@ -142,6 +152,20 @@ export default function CardNewsForm({
             placeholder="예: 요산 관리팀"
             className={`mt-1 ${inputCls}`}
           />
+        </label>
+        <label className="block">
+          <span className="text-sm text-slate-600">노출 대상</span>
+          <select
+            value={targetGroup}
+            onChange={(e) => setTargetGroup(e.target.value)}
+            className={`mt-1 ${inputCls}`}
+          >
+            {TARGET_GROUP_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block">
           <span className="text-sm text-slate-600">노출 순서</span>

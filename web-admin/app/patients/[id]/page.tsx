@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import MileagePanel from "@/components/MileagePanel";
 import InBodyPanel from "@/components/InBodyPanel";
+import MealScorePanel from "@/components/MealScorePanel";
 import { api, DailyReport, Patient, SurveySubmission } from "@/lib/api";
 
 const MEAL_LABEL: Record<string, string> = {
@@ -110,6 +111,8 @@ function PatientDetail() {
       <MileagePanel patientId={patient.id} />
 
       <InBodyPanel patientId={patient.id} />
+
+      <MealScorePanel patientId={patient.id} />
 
       <section>
         <h2 className="mb-4 text-lg font-semibold">

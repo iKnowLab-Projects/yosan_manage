@@ -118,6 +118,7 @@ export default function AppLayout() {
       {/* ===== 숨김 라우트 (탭바 미노출, 네비게이션으로만 진입) — 헤더 뒤로가기 제공 ===== */}
       <Tabs.Screen name="profile" options={hiddenScreen("내 정보")} />
       <Tabs.Screen name="history" options={hiddenScreen("나의 기록")} />
+      <Tabs.Screen name="meal-scores" options={hiddenScreen("내 기록")} />
       <Tabs.Screen name="survey" options={hiddenScreen("설문")} />
       <Tabs.Screen name="survey-view" options={hiddenScreen("설문 응답")} />
       <Tabs.Screen name="board" options={hiddenScreen("공지 · FAQ")} />

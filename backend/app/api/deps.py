@@ -38,3 +38,9 @@ def require_patient(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.PATIENT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Patient only")
     return user
+
+
+def allowed_content_groups(user: User) -> list[str]:
+    """환자에게 노출 가능한 콘텐츠 대상군 목록. 본인 설문군 + 'common'(공통)."""
+    grp = user.patient_profile.survey_group if user.patient_profile else None
+    return ["common"] + ([grp] if grp else [])

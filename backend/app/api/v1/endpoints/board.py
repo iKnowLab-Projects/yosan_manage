@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import allowed_content_groups, get_current_user, require_admin
 from app.db.session import get_db
 from app.models.content import Announcement
 from app.models.user import User, UserRole
@@ -30,6 +30,9 @@ def list_announcements(
         q = q.filter(Announcement.is_published == True)  # noqa: E712
     if category:
         q = q.filter(Announcement.category == category)
+    # 환자는 본인 설문군 + 공통(common) 항목만 노출
+    if user.role == UserRole.PATIENT:
+        q = q.filter(Announcement.target_group.in_(allowed_content_groups(user)))
     rows = (
         q.order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
         .limit(limit)
@@ -49,6 +52,9 @@ def get_announcement(
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     # 미게시 항목은 관리자만 조회 가능 (편집 화면용)
     if not row.is_published and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+    # 환자는 본인 설문군 + 공통 항목만 열람 가능
+    if user.role == UserRole.PATIENT and row.target_group not in allowed_content_groups(user):
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     return AnnouncementOut.model_validate(row)
 

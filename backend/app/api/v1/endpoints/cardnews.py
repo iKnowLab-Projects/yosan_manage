@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import allowed_content_groups, get_current_user, require_admin
 from app.db.session import get_db
 from app.models.content import CardNews
 from app.models.user import User, UserRole
@@ -27,6 +27,9 @@ def list_cardnews(
     q = db.query(CardNews)
     if not (include_unpublished and user.role == UserRole.ADMIN):
         q = q.filter(CardNews.is_published == True)  # noqa: E712
+    # 환자는 본인 설문군 + 공통(common) 항목만 노출
+    if user.role == UserRole.PATIENT:
+        q = q.filter(CardNews.target_group.in_(allowed_content_groups(user)))
     rows = (
         q.order_by(CardNews.display_order.asc(), CardNews.created_at.desc())
         .limit(limit)
@@ -46,6 +49,9 @@ def get_cardnews(
         raise HTTPException(status_code=404, detail="카드뉴스를 찾을 수 없습니다.")
     # 미게시 항목은 관리자만 조회 가능 (편집 화면용)
     if not row.is_published and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=404, detail="카드뉴스를 찾을 수 없습니다.")
+    # 환자는 본인 설문군 + 공통 항목만 열람 가능
+    if user.role == UserRole.PATIENT and row.target_group not in allowed_content_groups(user):
         raise HTTPException(status_code=404, detail="카드뉴스를 찾을 수 없습니다.")
     return CardNewsOut.model_validate(row)
 

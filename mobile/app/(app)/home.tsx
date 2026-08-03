@@ -100,9 +100,9 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity
           style={styles.historyBtn}
-          onPress={() => router.push("/(app)/history")}
+          onPress={() => router.push("/(app)/meal-scores")}
         >
-          <Text style={styles.historyBtnText}>일일 보고 기록 보기</Text>
+          <Text style={styles.historyBtnText}>내 기록</Text>
         </TouchableOpacity>
       </View>
 
