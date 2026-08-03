@@ -99,8 +99,8 @@ export default function CardNewsForm({
       setError("제목을 입력해 주세요.");
       return;
     }
-    if (images.length === 0) {
-      setError("이미지를 최소 1장 업로드해 주세요.");
+    if (images.length === 0 && !videoKey) {
+      setError("이미지 또는 동영상 중 하나 이상 등록해 주세요.");
       return;
     }
     setSubmitting(true);
@@ -110,7 +110,7 @@ export default function CardNewsForm({
         author: author.trim() || null,
         summary: summary.trim() || null,
         body: body.trim() || null,
-        image_key: images[0],
+        image_key: images[0] ?? "", // 동영상만 있는 카드는 대표 이미지 없음
         images,
         video_key: videoKey,
         link_url: linkUrl.trim() || null,
@@ -209,9 +209,9 @@ export default function CardNewsForm({
       {/* 이미지 업로드 */}
       <div>
         <span className="text-sm text-slate-600">
-          이미지 <span className="text-danger">*</span>
+          이미지
           <span className="ml-1 text-xs text-slate-400">
-            (첫 번째 이미지가 대표 썸네일, 나머지는 상세 캐러셀)
+            (첫 번째가 대표 썸네일 · 동영상만 등록할 경우 이미지는 생략 가능)
           </span>
         </span>
         <div className="mt-2 flex flex-wrap gap-3">
