@@ -9,6 +9,7 @@ class AnnouncementIn(BaseModel):
     title: str
     body: str
     category: str = "notice"  # notice | faq
+    target_group: str = "common"  # 'B' | 'C' | 'common'
     is_pinned: bool = False
     is_published: bool = True
 
@@ -19,6 +20,7 @@ class AnnouncementOut(BaseModel):
     title: str
     body: str
     category: str
+    target_group: str = "common"
     is_pinned: bool
     is_published: bool
     created_at: datetime
@@ -35,6 +37,7 @@ class CardNewsIn(BaseModel):
     images: List[str] = []
     video_key: Optional[str] = None
     link_url: Optional[str] = None
+    target_group: str = "common"  # 'B' | 'C' | 'common'
     display_order: int = 0
     is_published: bool = True
 
@@ -50,6 +53,7 @@ class CardNewsOut(BaseModel):
     images: List[str] = []
     video_key: Optional[str] = None
     link_url: Optional[str] = None
+    target_group: str = "common"
     display_order: int
     is_published: bool
     created_at: datetime

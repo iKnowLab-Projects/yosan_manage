@@ -8,6 +8,7 @@ from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models.content import Announcement, CardNews
 from app.models.inbody import InBodyResult  # noqa: F401  (create_all 등록용)
+from app.models.meal_score import MealScore  # noqa: F401  (create_all 등록용)
 from app.models.view import ContentView  # noqa: F401  (create_all 등록용)
 from app.models.user import User, UserRole
 
@@ -46,6 +47,19 @@ def _migrate() -> None:
             text(
                 "ALTER TABLE mileage_completions "
                 "ADD COLUMN IF NOT EXISTS survey_submission_id INTEGER"
+            )
+        )
+        # 콘텐츠 노출 대상 설문군 (B군 전용 / C군 전용 / 공통)
+        conn.execute(
+            text(
+                "ALTER TABLE card_news "
+                "ADD COLUMN IF NOT EXISTS target_group VARCHAR(10) DEFAULT 'common'"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE announcements "
+                "ADD COLUMN IF NOT EXISTS target_group VARCHAR(10) DEFAULT 'common'"
             )
         )
 

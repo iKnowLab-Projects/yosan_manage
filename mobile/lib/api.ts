@@ -282,6 +282,18 @@ export type InBodyResult = {
   updated_at: string;
 };
 
+export type MealScorePoint = {
+  year_month: string; // 'YYYY-MM'
+  my_score?: number | null; // 본인 점수(파란 점)
+  group_avg?: number | null; // 같은 설문군 평균(빨간 점)
+  comment?: string | null; // 해당 월 관리자 코멘트
+};
+
+export type MealScoreTrend = {
+  survey_group?: string | null;
+  points: MealScorePoint[]; // 과거→현재, 최대 6개
+};
+
 export type PatientMe = {
   id: number;
   email: string;

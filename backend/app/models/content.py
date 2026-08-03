@@ -15,6 +15,8 @@ class Announcement(Base):
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(40), default="notice")  # notice | faq
+    # 노출 대상 설문군: 'B'(B군 전용) | 'C'(C군 전용) | 'common'(공통)
+    target_group: Mapped[str] = mapped_column(String(10), default="common")
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -38,6 +40,8 @@ class CardNews(Base):
     images: Mapped[list[str]] = mapped_column(JSON, default=list)
     video_key: Mapped[str | None] = mapped_column(String(300))  # 첨부 동영상 업로드 URL/키
     link_url: Mapped[str | None] = mapped_column(String(500))
+    # 노출 대상 설문군: 'B'(B군 전용) | 'C'(C군 전용) | 'common'(공통)
+    target_group: Mapped[str] = mapped_column(String(10), default="common")
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

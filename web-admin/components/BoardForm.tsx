@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Announcement, AnnouncementIn } from "@/lib/api";
+import { Announcement, AnnouncementIn, TARGET_GROUP_OPTIONS } from "@/lib/api";
 
 const inputCls =
   "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500";
@@ -17,6 +17,9 @@ export default function BoardForm({
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [category, setCategory] = useState(initial?.category ?? "notice");
+  const [targetGroup, setTargetGroup] = useState(
+    initial?.target_group ?? "common"
+  );
   const [body, setBody] = useState(initial?.body ?? "");
   const [isPinned, setIsPinned] = useState(initial?.is_pinned ?? false);
   const [isPublished, setIsPublished] = useState(initial?.is_published ?? true);
@@ -41,6 +44,7 @@ export default function BoardForm({
         title: title.trim(),
         body: body.trim(),
         category,
+        target_group: targetGroup,
         is_pinned: isPinned,
         is_published: isPublished,
       });
@@ -58,7 +62,7 @@ export default function BoardForm({
         </p>
       )}
 
-      <div className="grid grid-cols-[120px_1fr] gap-4">
+      <div className="grid grid-cols-[120px_140px_1fr] gap-4">
         <label className="block">
           <span className="text-sm text-slate-600">분류</span>
           <select
@@ -68,6 +72,20 @@ export default function BoardForm({
           >
             <option value="notice">공지</option>
             <option value="faq">FAQ</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-sm text-slate-600">노출 대상</span>
+          <select
+            value={targetGroup}
+            onChange={(e) => setTargetGroup(e.target.value)}
+            className={`mt-1 ${inputCls}`}
+          >
+            {TARGET_GROUP_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="block">
