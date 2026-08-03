@@ -1,8 +1,9 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Linking,
   Pressable,
   RefreshControl,
@@ -361,7 +362,7 @@ function Circle({
 }
 
 // 전체 진행 상황 progress bar — 24칸(회색). 완료=녹색, 지난 달 미실시=적색,
-// 진행 중인 이번 달=파란색(경과 카운팅에 포함).
+// 진행할 이번 달=회색↔파랑으로 천천히 깜빡임(경과 카운팅에 포함).
 function ProgressBar24({
   months,
   currentIndex,
@@ -369,12 +370,46 @@ function ProgressBar24({
   months: MileageMonth[];
   currentIndex: number | null;
 }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 950,
+          useNativeDriver: false, // 색상 보간은 JS 드라이버 필요
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 950,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
+
+  // 회색(#cbd5e1) ↔ 파랑(#60a5fa) 사이를 천천히 오감
+  const currentBg = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#cbd5e1", "#60a5fa"],
+  });
+
   const cells = Array.from({ length: 24 }, (_, i) => months[i]);
   return (
     <View style={styles.progressWrap}>
       {cells.map((m, i) => {
         const isCurrent =
           !!m && !m.completed && !m.missed && m.month_index === currentIndex;
+        if (isCurrent) {
+          return (
+            <Animated.View
+              key={i}
+              style={[styles.progressCell, { backgroundColor: currentBg }]}
+            />
+          );
+        }
         return (
           <View
             key={i}
@@ -382,7 +417,6 @@ function ProgressBar24({
               styles.progressCell,
               m?.completed && styles.progressDone,
               m && !m.completed && m.missed && styles.progressMissed,
-              isCurrent && styles.progressCurrent,
             ]}
           />
         );
@@ -473,7 +507,6 @@ const styles = StyleSheet.create({
   },
   progressDone: { backgroundColor: "#22c55e" }, // 완료: 녹색
   progressMissed: { backgroundColor: "#ef4444" }, // 미실시(지난 달): 적색
-  progressCurrent: { backgroundColor: "#60a5fa" }, // 진행 중인 이번 달: 파란색
 
   legend: {
     flexDirection: "row",
