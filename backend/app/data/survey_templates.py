@@ -162,10 +162,15 @@ C_FOOD_QUESTIONS: list[Question] = [
     },
 ]
 
+# single-blind 연구 — 대상자가 소속 군(B/C)을 유추할 수 없도록
+# name/description/섹션 제목은 양 군 동일한 일반 명칭을 사용한다. (문항 내용만 다름)
+_SURVEY_NAME = "월간 식이·복약 설문"
+_SURVEY_DESC = "지난 한 달간의 식이 빈도와 복약 행동을 평가합니다."
+
 SURVEY_B: SurveyTemplate = {
     "group": "B",
-    "name": "B군 — 저요산식단 + 복약 행동",
-    "description": "지난 한 달간의 식이 빈도와 복약 행동을 평가합니다.",
+    "name": _SURVEY_NAME,
+    "description": _SURVEY_DESC,
     "sections": [
         {"title": "식이 빈도 (FFQ)", "questions": B_FOOD_QUESTIONS},
         {"title": "복약 행동 (MARS-5)", "questions": MARS5_QUESTIONS},
@@ -174,10 +179,10 @@ SURVEY_B: SurveyTemplate = {
 
 SURVEY_C: SurveyTemplate = {
     "group": "C",
-    "name": "C군 — DASH식단 + 복약 행동",
-    "description": "지난 한 달간의 DASH 식단 준수도와 복약 행동을 평가합니다.",
+    "name": _SURVEY_NAME,
+    "description": _SURVEY_DESC,
     "sections": [
-        {"title": "식이 빈도 (DASH)", "questions": C_FOOD_QUESTIONS},
+        {"title": "식이 빈도 (FFQ)", "questions": C_FOOD_QUESTIONS},
         {"title": "복약 행동 (MARS-5)", "questions": MARS5_QUESTIONS},
     ],
 }
