@@ -59,6 +59,9 @@ export default function AuthGuard({
               <a className="hover:underline" href="/notifications">
                 알림 발송
               </a>
+              <a className="hover:underline" href="/appointments">
+                외래 알림
+              </a>
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-600">
