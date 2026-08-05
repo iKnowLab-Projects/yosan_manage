@@ -63,7 +63,7 @@ export default function AppLayout() {
         tabBarLabelStyle: { fontSize: 11 },
       }}
     >
-      {/* ===== 노출 탭: 홈 · 마일리지 · InBody · 정보 · 알림 ===== */}
+      {/* ===== 노출 탭: 홈 · 마일리지 · 인바디 · 정보 · 알림 ===== */}
       <Tabs.Screen
         name="home"
         options={{
@@ -87,8 +87,8 @@ export default function AppLayout() {
       <Tabs.Screen
         name="records"
         options={{
-          title: "InBody",
-          tabBarLabel: "InBody",
+          title: "인바디",
+          tabBarLabel: "인바디",
           tabBarIcon: ({ focused }) => (
             <TabIcon source={tabIcons.records} focused={focused} />
           ),

@@ -9,6 +9,7 @@ const inputCls =
 
 // (필드 key, 라벨, 단위) — measured_date/이미지/비고는 별도 처리
 const FIELDS: { key: keyof InBodyResult; label: string; unit: string }[] = [
+  { key: "uric_acid", label: "혈액 요산 수치", unit: "mg/dL" },
   { key: "weight_kg", label: "체중", unit: "kg" },
   { key: "skeletal_muscle_mass", label: "골격근량", unit: "kg" },
   { key: "body_fat_mass", label: "체지방량", unit: "kg" },
@@ -21,6 +22,7 @@ const FIELDS: { key: keyof InBodyResult; label: string; unit: string }[] = [
 
 const EMPTY_FORM: Record<string, string> = {
   measured_date: "",
+  uric_acid: "",
   weight_kg: "",
   skeletal_muscle_mass: "",
   body_fat_mass: "",
@@ -138,6 +140,7 @@ export default function InBodyPanel({ patientId }: { patientId: number }) {
         method: "POST",
         body: JSON.stringify({
           measured_date: form.measured_date,
+          uric_acid: num(form.uric_acid),
           weight_kg: num(form.weight_kg),
           skeletal_muscle_mass: num(form.skeletal_muscle_mass),
           body_fat_mass: num(form.body_fat_mass),

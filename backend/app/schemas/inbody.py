@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 class InBodyIn(BaseModel):
     measured_date: date
+    uric_acid: Optional[float] = None
     weight_kg: Optional[float] = None
     skeletal_muscle_mass: Optional[float] = None
     body_fat_mass: Optional[float] = None
@@ -23,6 +24,7 @@ class InBodyOut(BaseModel):
     id: int
     patient_id: int
     measured_date: date
+    uric_acid: Optional[float] = None
     weight_kg: Optional[float] = None
     skeletal_muscle_mass: Optional[float] = None
     body_fat_mass: Optional[float] = None

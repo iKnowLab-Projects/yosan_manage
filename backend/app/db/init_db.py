@@ -62,6 +62,13 @@ def _migrate() -> None:
                 "ADD COLUMN IF NOT EXISTS target_group VARCHAR(10) DEFAULT 'common'"
             )
         )
+        # 인바디 — 혈액 요산 수치(mg/dL)
+        conn.execute(
+            text(
+                "ALTER TABLE inbody_results "
+                "ADD COLUMN IF NOT EXISTS uric_acid DOUBLE PRECISION"
+            )
+        )
 
 
 def init_db() -> None:

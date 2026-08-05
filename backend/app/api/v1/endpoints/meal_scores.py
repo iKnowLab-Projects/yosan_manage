@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.meal_score import MealScore
-from app.models.patient import PatientProfile
 from app.models.user import User, UserRole
 from app.schemas.meal_score import (
     MealScoreIn,
@@ -42,13 +41,11 @@ def my_meal_trend(
     mine = list(reversed(mine))  # 과거→현재
     months = [m.year_month for m in mine]
 
-    # 같은 설문군 월별 평균
+    # 모든 참여자 월별 평균 (single-blind — 군 구분 없이 전체 기준)
     avg_map: dict[str, float] = {}
-    if grp and months:
+    if months:
         rows = (
             db.query(MealScore.year_month, func.avg(MealScore.score))
-            .join(PatientProfile, PatientProfile.user_id == MealScore.patient_id)
-            .filter(PatientProfile.survey_group == grp)
             .filter(MealScore.year_month.in_(months))
             .group_by(MealScore.year_month)
             .all()

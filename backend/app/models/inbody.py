@@ -21,6 +21,7 @@ class InBodyResult(Base):
     )
     measured_date: Mapped[date] = mapped_column(Date, index=True)
 
+    uric_acid: Mapped[float | None] = mapped_column(Float)  # 혈액 요산 수치(mg/dL)
     weight_kg: Mapped[float | None] = mapped_column(Float)  # 체중(kg)
     skeletal_muscle_mass: Mapped[float | None] = mapped_column(Float)  # 골격근량(kg)
     body_fat_mass: Mapped[float | None] = mapped_column(Float)  # 체지방량(kg)

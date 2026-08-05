@@ -20,6 +20,7 @@ const TREND_METRICS: {
   unit: string;
   color: string;
 }[] = [
+  { key: "uric_acid", title: "혈액 요산 수치", unit: "mg/dL", color: "#f59e0b" },
   { key: "weight_kg", title: "체중", unit: "kg", color: "#2563eb" },
   { key: "skeletal_muscle_mass", title: "골격근량", unit: "kg", color: "#7c3aed" },
   { key: "percent_body_fat", title: "체지방률", unit: "%", color: "#ef4444" },
@@ -31,8 +32,14 @@ const METRICS: {
   key: keyof InBodyResult;
   label: string;
   unit: string;
-  // 증감 방향 해석(추이 표시용): 좋아지는 방향이 감소인지 증가인지
+  note?: string; // 참고치 등 부가 설명
 }[] = [
+  {
+    key: "uric_acid",
+    label: "혈액 요산 수치",
+    unit: "mg/dL",
+    note: "참고치 3.4~7.0mg/dL",
+  },
   { key: "weight_kg", label: "체중", unit: "kg" },
   { key: "skeletal_muscle_mass", label: "골격근량", unit: "kg" },
   { key: "body_fat_mass", label: "체지방량", unit: "kg" },
@@ -40,7 +47,7 @@ const METRICS: {
   { key: "bmi", label: "BMI", unit: "" },
   { key: "basal_metabolic_rate", label: "기초대사량", unit: "kcal" },
   { key: "total_body_water", label: "체수분", unit: "L" },
-  { key: "inbody_score", label: "InBody 점수", unit: "점" },
+  { key: "inbody_score", label: "인바디 점수", unit: "점" },
 ];
 
 function fmt(v: number | null | undefined): string {
@@ -124,7 +131,7 @@ export default function RecordsScreen() {
     >
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          InBody(체성분) 결과는 병원 방문(6개월) 시 담당 연구원이 등록합니다.
+          인바디(체성분) 결과는 병원 방문(6개월) 시 담당 연구원이 등록합니다.
           {"\n"}여기에서 나의 결과와 변화를 확인할 수 있어요.
         </Text>
       </View>
@@ -136,7 +143,7 @@ export default function RecordsScreen() {
             style={styles.emptyIcon}
             resizeMode="contain"
           />
-          <Text style={styles.emptyTitle}>아직 등록된 InBody 결과가 없습니다</Text>
+          <Text style={styles.emptyTitle}>아직 등록된 인바디 결과가 없습니다</Text>
           <Text style={styles.emptyBody}>
             다음 병원 방문 시 측정 결과가 등록됩니다.
           </Text>
@@ -246,6 +253,7 @@ function DetailPanel({
                   <Text style={styles.metricUnit}> {m.unit}</Text>
                 ) : null}
               </Text>
+              {m.note ? <Text style={styles.metricNote}>{m.note}</Text> : null}
               {d && (
                 <Text
                   style={[
@@ -364,6 +372,7 @@ const styles = StyleSheet.create({
   metricLabel: { fontSize: 12, color: "#94a3b8", marginBottom: 2 },
   metricValue: { fontSize: 17, fontWeight: "700", color: "#1e293b" },
   metricUnit: { fontSize: 12, fontWeight: "600", color: "#64748b" },
+  metricNote: { fontSize: 10, marginTop: 2, color: "#94a3b8" },
   metricDelta: { fontSize: 11, marginTop: 2, color: "#64748b" },
   deltaUp: { color: "#dc2626" },
   deltaDown: { color: "#2563eb" },

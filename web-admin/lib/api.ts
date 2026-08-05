@@ -135,6 +135,41 @@ export type SurveySubmission = {
   answers: SurveyAnswer[];
 };
 
+// ---------- 설문 템플릿 (관리자 대리 입력용) ----------
+export type SurveyQuestion = {
+  code: string;
+  text: string;
+  options: string[];
+};
+export type SurveySection = { title: string; questions: SurveyQuestion[] };
+export type SurveyTemplate = {
+  group: "B" | "C";
+  name: string;
+  description: string;
+  sections: SurveySection[];
+};
+export type SurveySubmitIn = {
+  check_date?: string | null;
+  notes?: string | null;
+  answers: { question_code: string; choice_index: number }[];
+};
+
+export async function getSurveyTemplate(
+  group: "B" | "C"
+): Promise<SurveyTemplate> {
+  return api<SurveyTemplate>(`/api/v1/surveys/template/${group}`);
+}
+
+export async function adminSubmitSurvey(
+  patientId: number,
+  payload: SurveySubmitIn
+): Promise<SurveySubmission> {
+  return api<SurveySubmission>(`/api/v1/surveys/patient/${patientId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export type MileageMonth = {
   month_index: number;
   is_hospital_visit: boolean;
@@ -300,6 +335,7 @@ export type InBodyResult = {
   id: number;
   patient_id: number;
   measured_date: string;
+  uric_acid?: number | null;
   weight_kg?: number | null;
   skeletal_muscle_mass?: number | null;
   body_fat_mass?: number | null;

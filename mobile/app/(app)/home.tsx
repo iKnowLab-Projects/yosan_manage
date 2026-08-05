@@ -1,7 +1,8 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   RefreshControl,
   ScrollView,
@@ -11,14 +12,123 @@ import {
   View,
 } from "react-native";
 import type { ImageSourcePropType } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, PatientMe } from "@/lib/api";
 import { logoIcon, tabIcons } from "@/lib/images";
+import TutorialOverlay, {
+  TutorialRect,
+  TutorialStep,
+} from "@/components/TutorialOverlay";
+
+const TUTORIAL_KEY = "yosan_tutorial_seen_v1";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [me, setMe] = useState<PatientMe | null>(null);
+
+  // ===== 최초 로그인 튜토리얼 =====
+  const [tutorial, setTutorial] = useState<TutorialStep[] | null>(null);
+  const recordRef = useRef<any>(null);
+  const mileageRef = useRef<any>(null);
+  const inbodyRef = useRef<any>(null);
+  const infoRef = useRef<any>(null);
+  const tutorialChecked = useRef(false);
+
+  const measure = (ref: React.RefObject<any>): Promise<TutorialRect | null> =>
+    new Promise((res) => {
+      const node = ref.current;
+      if (!node?.measureInWindow) return res(null);
+      node.measureInWindow((x: number, y: number, w: number, h: number) =>
+        res({ x, y, w, h }),
+      );
+    });
+
+  const startTutorial = useCallback(async () => {
+    const [rec, mil, inb, inf] = await Promise.all([
+      measure(recordRef),
+      measure(mileageRef),
+      measure(inbodyRef),
+      measure(infoRef),
+    ]);
+    const { width: W, height: H } = Dimensions.get("window");
+    const tabH = 52;
+    const tabTop = H - insets.bottom - tabH;
+    const tab = (idx: number): TutorialRect => ({
+      x: (W / 5) * idx,
+      y: tabTop,
+      w: W / 5,
+      h: tabH,
+    });
+    const filt = (arr: (TutorialRect | null)[]) =>
+      arr.filter(Boolean) as TutorialRect[];
+    setTutorial([
+      {
+        spots: filt([rec]),
+        segments: [
+          { t: "내 기록", hl: true },
+          { t: " 버튼을 누르면 내가 시행한 " },
+          { t: "설문지의 점수", hl: true },
+          { t: "와 참여자들의 평균 점수를 볼 수 있습니다." },
+        ],
+      },
+      {
+        spots: filt([mil, tab(1)]),
+        segments: [
+          { t: "마일리지", hl: true },
+          { t: " 버튼을 누르면 내가 " },
+          { t: "작성한 설문지", hl: true },
+          { t: "와 지금까지의 " },
+          { t: "연구 진행도", hl: true },
+          { t: "를 볼 수 있습니다." },
+        ],
+      },
+      {
+        spots: filt([inb, tab(2)]),
+        segments: [
+          { t: "인바디", hl: true },
+          { t: " 버튼을 누르면 나의 " },
+          { t: "요산수치와 체중, 체지방량, 근골격량, BMI 수치", hl: true },
+          { t: "를 볼 수 있습니다." },
+        ],
+      },
+      {
+        spots: filt([inf, tab(3)]),
+        segments: [
+          { t: "정보", hl: true },
+          { t: " 버튼을 누르면 통풍발작을 예방할 수 있는 다양한 " },
+          { t: "영상과 카드뉴스", hl: true },
+          { t: "들을 볼 수 있습니다." },
+        ],
+      },
+      {
+        spots: filt([tab(4)]),
+        segments: [
+          { t: "알림", hl: true },
+          { t: " 버튼을 누르면 내가 " },
+          { t: "잊고 보지 못했던 알림", hl: true },
+          { t: "들을 모아서 볼 수 있습니다." },
+        ],
+      },
+    ]);
+  }, [insets.bottom]);
+
+  const finishTutorial = useCallback(() => {
+    setTutorial(null);
+    AsyncStorage.setItem(TUTORIAL_KEY, "1").catch(() => {});
+  }, []);
+
+  // 최초 로그인(=아직 본 적 없음) 시 1회 실행
+  useEffect(() => {
+    if (!me || tutorialChecked.current) return;
+    tutorialChecked.current = true;
+    AsyncStorage.getItem(TUTORIAL_KEY).then((seen) => {
+      if (!seen) setTimeout(startTutorial, 650); // 레이아웃 완료 후 측정
+    });
+  }, [me, startTutorial]);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +163,7 @@ export default function HomeScreen() {
   const p = me?.profile ?? {};
 
   return (
+    <>
     <ScrollView
       style={{ backgroundColor: "#f8fafc" }}
       contentContainerStyle={styles.container}
@@ -95,6 +206,7 @@ export default function HomeScreen() {
           />
         </View>
         <TouchableOpacity
+          ref={recordRef}
           style={styles.historyBtn}
           onPress={() => router.push("/(app)/meal-scores")}
         >
@@ -105,16 +217,19 @@ export default function HomeScreen() {
       {/* ===== 바로가기 ===== */}
       <View style={styles.shortcutRow}>
         <Shortcut
+          innerRef={mileageRef}
           icon={tabIcons.mileage}
           label="마일리지"
           onPress={() => router.push("/(app)/mileage")}
         />
         <Shortcut
+          innerRef={inbodyRef}
           icon={tabIcons.records}
-          label="InBody"
+          label="인바디"
           onPress={() => router.push("/(app)/records")}
         />
         <Shortcut
+          innerRef={infoRef}
           icon={tabIcons.info}
           label="정보"
           onPress={() => router.push("/(app)/info")}
@@ -127,6 +242,10 @@ export default function HomeScreen() {
 
       <View style={{ height: 24 }} />
     </ScrollView>
+    {tutorial && (
+      <TutorialOverlay steps={tutorial} onDone={finishTutorial} />
+    )}
+    </>
   );
 }
 
@@ -143,13 +262,20 @@ function Shortcut({
   icon,
   label,
   onPress,
+  innerRef,
 }: {
   icon: ImageSourcePropType;
   label: string;
   onPress: () => void;
+  innerRef?: React.Ref<any>;
 }) {
   return (
-    <TouchableOpacity style={styles.shortcut} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      ref={innerRef}
+      style={styles.shortcut}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       <Image source={icon} style={styles.shortcutIcon} resizeMode="contain" />
       <Text style={styles.shortcutLabel}>{label}</Text>
     </TouchableOpacity>
