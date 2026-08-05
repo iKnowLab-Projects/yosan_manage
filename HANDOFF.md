@@ -104,17 +104,36 @@ docker run --rm -v yosan_uploads:/data -v "$PWD":/backup alpine \
 
 ---
 
-## 4. 모바일 앱 연결 (서버 이전 후)
+## 4. 모바일 앱 (서버 이전 후)
 
-앱이 새 서버를 바라보도록 **apiBase 만 새 도메인으로 바꿔 재빌드**하면 됩니다.
+모바일 앱은 서버가 아니라 **휴대폰에서 도는 코드**라 컨테이너로 "실행"되지 않는다.
+실제 빌드/OTA 는 **EAS(Expo 클라우드)** 에서 수행된다. 다만 이식된 환경에서도 계속
+개발·배포할 수 있도록, **개발 도구환경(Node + Expo/EAS CLI + 의존성)을 컨테이너로 제공**한다.
+
+### (a) 컨테이너로 빌드/OTA — 호스트에 Node 설치 불필요
+```bash
+# 1) Expo 액세스 토큰을 .env.production 의 EXPO_TOKEN 에 넣기
+#    (expo.dev → Account → Access tokens)
+# 2) 빌더 이미지 빌드
+docker compose -f docker-compose.prod.yml --profile mobile build mobile-builder
+# 3) OTA(JS/이미지 변경 즉시 반영) 또는 빌드/제출
+docker compose -f docker-compose.prod.yml --profile mobile run --rm mobile-builder \
+    eas update --branch production --platform all --message "설명"
+docker compose -f docker-compose.prod.yml --profile mobile run --rm mobile-builder \
+    npm run build:android      # / build:ios / submit:ios
 ```
-# EAS 환경변수로 주입 (app.config.js 가 API_BASE 를 읽음)
-# 또는 mobile/app.json 의 extra.apiBase 를 https://<DOMAIN> 으로
-cd mobile
-npm run build:android   # / build:ios
-```
-> 모바일 빌드/스토어 배포는 EAS·Apple·Google **계정** 에 묶여 있어, 다른 조직으로 완전히 넘길 경우
-> 프로젝트 이전 또는 새 프로젝트/계정 등록이 별도로 필요합니다. (서버 이전과는 독립적)
+> `mobile/` 소스는 볼륨으로 마운트되어, 호스트에서 코드를 고치면 컨테이너가 바로 반영한다.
+
+### (b) 새 서버 주소로 전환
+앱이 새 서버를 바라보게 하려면 **apiBase 만 새 도메인으로 바꿔 재빌드**한다.
+- EAS 환경변수 `API_BASE=https://<DOMAIN>` 주입(app.config.js 가 읽음), 또는
+- `mobile/app.json` 의 `extra.apiBase` 를 `https://<DOMAIN>` 으로 수정 후 재빌드.
+
+### 계정 주의
+모바일 빌드/스토어 배포는 **EAS·Apple·Google 계정** 에 묶여 있다.
+- **EAS**: `EXPO_TOKEN` 은 해당 Expo 계정 소유자의 토큰이어야 한다. 다른 조직으로 완전히
+  넘길 경우 EAS 프로젝트 이전 또는 새 프로젝트 생성(app.config.js owner/projectId 교체)이 필요.
+- **Apple/Google 개발자 계정**: 스토어 소유권·인증서는 별도 이전/재등록. (서버 이전과 독립적)
 
 ---
 
