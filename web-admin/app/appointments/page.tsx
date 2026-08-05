@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
+import AppointmentMessagesEditor from "@/components/AppointmentMessagesEditor";
 import {
   AppointmentStatus,
   getAppointmentStatus,
@@ -110,6 +111,8 @@ function AppointmentsView() {
           {msg}
         </p>
       )}
+
+      <AppointmentMessagesEditor />
 
       <div className="mb-3 flex gap-4 text-xs text-slate-500">
         <Legend color="bg-emerald-100 text-emerald-700" label="발송됨" />

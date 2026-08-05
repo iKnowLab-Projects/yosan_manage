@@ -347,6 +347,36 @@ export async function runAppointmentReminders(): Promise<{ sent: number }> {
   );
 }
 
+// ---------- 외래 알림 메시지 편집 ----------
+export type AppointmentMessage = {
+  milestone: number;
+  title: string;
+  body: string;
+  is_custom: boolean;
+  default_title: string;
+  default_body: string;
+};
+
+export async function getAppointmentMessages(): Promise<AppointmentMessage[]> {
+  return api<AppointmentMessage[]>("/api/v1/notifications/appointment-messages");
+}
+
+export async function saveAppointmentMessage(
+  milestone: number,
+  payload: { title: string; body: string }
+): Promise<void> {
+  await api(`/api/v1/notifications/appointment-messages/${milestone}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetAppointmentMessage(milestone: number): Promise<void> {
+  await api<void>(`/api/v1/notifications/appointment-messages/${milestone}`, {
+    method: "DELETE",
+  });
+}
+
 export type ViewSummary = {
   cardnews_total: number;
   notification_total: number;

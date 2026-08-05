@@ -1,15 +1,23 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
+from app.data.appointment_messages import MILESTONES, message_for
 from app.db.session import get_db
+from app.models.appointment_message import AppointmentMessageTemplate
 from app.models.device import DeviceToken
 from app.models.notification import Notification
 from app.models.user import User, UserRole
 from app.schemas.notification import DeviceTokenIn, NotificationOut, NotificationSendIn
 from app.services.push import send_push
+
+
+class AppointmentMessageIn(BaseModel):
+    title: str
+    body: str
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -131,3 +139,76 @@ def appointment_reminders_status(
     from app.services.reminders import appointment_schedule
 
     return appointment_schedule(db)
+
+
+@router.get("/appointment-messages")
+def list_appointment_messages(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list:
+    """마일스톤별 외래 알림 메시지 (편집본 우선, 없으면 기본값)."""
+    overrides = {
+        r.milestone_month: r
+        for r in db.query(AppointmentMessageTemplate).all()
+    }
+    result = []
+    for m in MILESTONES:
+        row = overrides.get(m)
+        d_title, d_body = message_for(m)
+        result.append(
+            {
+                "milestone": m,
+                "title": row.title if row else d_title,
+                "body": row.body if row else d_body,
+                "is_custom": row is not None,
+                "default_title": d_title,
+                "default_body": d_body,
+            }
+        )
+    return result
+
+
+@router.put("/appointment-messages/{milestone}")
+def update_appointment_message(
+    milestone: int,
+    payload: AppointmentMessageIn,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    """마일스톤 메시지 편집(upsert)."""
+    if milestone not in MILESTONES:
+        raise HTTPException(status_code=400, detail="유효하지 않은 마일스톤")
+    row = (
+        db.query(AppointmentMessageTemplate)
+        .filter(AppointmentMessageTemplate.milestone_month == milestone)
+        .first()
+    )
+    if row:
+        row.title = payload.title
+        row.body = payload.body
+    else:
+        row = AppointmentMessageTemplate(
+            milestone_month=milestone, title=payload.title, body=payload.body
+        )
+        db.add(row)
+    db.commit()
+    return {"milestone": milestone, "title": payload.title, "body": payload.body}
+
+
+@router.delete(
+    "/appointment-messages/{milestone}", status_code=status.HTTP_204_NO_CONTENT
+)
+def reset_appointment_message(
+    milestone: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> None:
+    """편집 메시지 삭제 → 코드 기본값으로 복원."""
+    row = (
+        db.query(AppointmentMessageTemplate)
+        .filter(AppointmentMessageTemplate.milestone_month == milestone)
+        .first()
+    )
+    if row:
+        db.delete(row)
+        db.commit()
