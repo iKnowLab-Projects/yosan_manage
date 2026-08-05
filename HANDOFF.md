@@ -1,0 +1,139 @@
+# 시스템 인계 · 이식 가이드 (Docker 원클릭)
+
+이 문서 하나로 **완전히 새로운 서버**에 전체 시스템(DB + 백엔드 + 관리자 웹 + HTTPS)을 올릴 수 있습니다.
+
+> **호스트에 필요한 것은 Docker + Docker Compose 뿐입니다.**
+> Python·Node·npm·Postgres 는 전부 컨테이너 안에 들어 있어 호스트에 설치할 필요가 없습니다.
+> 모바일 앱 빌드는 EAS(클라우드)에서 하므로 이 서버와 무관합니다.
+
+---
+
+## 0. 사전 준비 (한 번)
+
+### (a) Docker 설치 — 없을 경우 (Linux, root 권한 필요)
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER   # 로그아웃 후 재로그인
+docker --version && docker compose version
+```
+> 루트 권한이 없어 Docker 설치가 불가능하면, 관리자에게 **Docker 사용 가능한 리눅스 VM** 을 요청하세요.
+
+### (b) 도메인 준비
+- 도메인 하나의 **A 레코드**가 이 서버의 **공인 IP** 를 가리키게 설정.
+- 방화벽에서 **80, 443** 포트 개방 (Caddy 의 인증서 발급·서비스에 필요).
+- 도메인이 없으면 무료 DuckDNS(`xxx.duckdns.org`) 나 `sslip.io`(IP기반) 도 가능.
+
+---
+
+## 1. 배포 (원클릭)
+
+```bash
+# 1) 소스 가져오기 (git 또는 압축 전달)
+git clone <repo> yosan && cd yosan
+#   (git 이 없으면 zip 을 서버에 풀어도 됨)
+
+# 2) 환경변수 설정
+cp .env.production.example .env.production
+nano .env.production          # DOMAIN, 비밀번호, SECRET_KEY 등 CHANGE_ME 교체
+
+# 3) 전체 스택 기동 (빌드 + 실행)
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+끝입니다. 잠시 후 Caddy 가 HTTPS 인증서를 자동 발급하면:
+
+| URL | 내용 |
+|---|---|
+| `https://<DOMAIN>/` | 관리자 웹 (시드 관리자로 로그인) |
+| `https://<DOMAIN>/api/v1/...` | 백엔드 API |
+| `https://<DOMAIN>/uploads/...` | 업로드 파일(이미지·동영상) |
+| `https://<DOMAIN>/docs` | API 문서(Swagger) |
+
+상태 확인:
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f caddy   # 인증서 발급 로그
+```
+
+---
+
+## 2. 인터넷이 막힌 서버 (오프라인 이식)
+
+인터넷 없는 서버라면, **인터넷 되는 PC**에서 이미지를 만들어 파일로 옮깁니다.
+
+```bash
+# [인터넷 되는 PC] 이미지 빌드 후 tar 로 저장
+docker compose -f docker-compose.prod.yml --env-file .env.production build
+docker save \
+  $(docker compose -f docker-compose.prod.yml config | grep 'image:' | awk '{print $2}') \
+  postgres:16-alpine caddy:2-alpine \
+  -o yosan-images.tar
+
+# [대상 서버] 파일 옮긴 뒤 로드
+docker load -i yosan-images.tar
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+```
+> 빌드된 api/web-admin 이미지 이름은 `docker images` 로 확인해 `docker save` 대상에 포함하세요.
+
+---
+
+## 3. 기존 데이터 이전 (기존 서버 → 새 서버)
+
+### (a) 데이터베이스
+```bash
+# [기존 서버] 덤프
+docker compose -f docker-compose.prod.yml exec -T db \
+  pg_dump -U $DB_USER $DB_NAME > yosan_db.sql
+
+# [새 서버] (스택 기동 후) 복원
+cat yosan_db.sql | docker compose -f docker-compose.prod.yml exec -T db \
+  psql -U $DB_USER -d $DB_NAME
+```
+
+### (b) 업로드 파일 (이미지·동영상)
+업로드는 `yosan_uploads` 볼륨에 저장됩니다.
+```bash
+# [기존 서버] 볼륨 → tar
+docker run --rm -v yosan_uploads:/data -v "$PWD":/backup alpine \
+  tar czf /backup/uploads.tgz -C /data .
+
+# [새 서버] tar → 볼륨
+docker run --rm -v yosan_uploads:/data -v "$PWD":/backup alpine \
+  tar xzf /backup/uploads.tgz -C /data
+```
+
+---
+
+## 4. 모바일 앱 연결 (서버 이전 후)
+
+앱이 새 서버를 바라보도록 **apiBase 만 새 도메인으로 바꿔 재빌드**하면 됩니다.
+```
+# EAS 환경변수로 주입 (app.config.js 가 API_BASE 를 읽음)
+# 또는 mobile/app.json 의 extra.apiBase 를 https://<DOMAIN> 으로
+cd mobile
+npm run build:android   # / build:ios
+```
+> 모바일 빌드/스토어 배포는 EAS·Apple·Google **계정** 에 묶여 있어, 다른 조직으로 완전히 넘길 경우
+> 프로젝트 이전 또는 새 프로젝트/계정 등록이 별도로 필요합니다. (서버 이전과는 독립적)
+
+---
+
+## 5. 운영 명령 모음
+```bash
+CF="-f docker-compose.prod.yml --env-file .env.production"
+docker compose $CF up -d --build     # 배포/업데이트(코드 변경 후)
+docker compose $CF ps                # 상태
+docker compose $CF logs -f api       # 백엔드 로그
+docker compose $CF restart api       # 백엔드만 재시작
+docker compose $CF down              # 정지(볼륨/데이터는 유지)
+docker compose $CF down -v           # 정지 + 데이터 볼륨 삭제(주의!)
+```
+
+## 6. 체크리스트
+- [ ] Docker/Compose 설치됨
+- [ ] DOMAIN A레코드 → 서버 IP, 80/443 개방
+- [ ] `.env.production` 의 모든 CHANGE_ME 교체 (특히 SECRET_KEY, DB_PASSWORD)
+- [ ] `up -d --build` 후 `https://<DOMAIN>/` 접속·로그인 확인
+- [ ] (이전 시) DB 덤프·uploads 볼륨 복원
+- [ ] 시드 관리자 비밀번호 변경
+- [ ] 모바일 apiBase 새 도메인으로 재빌드

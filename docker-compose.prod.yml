@@ -1,0 +1,87 @@
+# =====================================================================
+# 통합 운영 배포 (원클릭) — DB + 백엔드 + 관리자 웹 + Caddy(HTTPS 프록시)
+#
+# 호스트 요구사항: Docker + Docker Compose "만" 있으면 됨.
+#   (Python / Node / npm / Postgres 전부 컨테이너 내부에 포함 → 호스트에 불필요)
+#
+# 사용:
+#   1) cp .env.production.example .env.production   (CHANGE_ME 값 교체, DOMAIN 설정)
+#   2) docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# 결과 (단일 도메인):
+#   https://<DOMAIN>/           → 관리자 웹
+#   https://<DOMAIN>/api/v1/... → 백엔드 API
+#   https://<DOMAIN>/uploads/.. → 업로드 파일(이미지·동영상, Range 지원)
+#   모바일 앱 apiBase = https://<DOMAIN>
+# =====================================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - yosan_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d $${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+    volumes:
+      # 업로드 파일 영속화 (컨테이너 재빌드에도 유지)
+      - yosan_uploads:/app/uploads
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 26610
+      --workers ${UVICORN_WORKERS:-4}
+      --proxy-headers
+      --forwarded-allow-ips=*
+
+  web-admin:
+    build: ./web-admin
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web-admin
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  yosan_pgdata:
+  yosan_uploads:
+  caddy_data:
+  caddy_config:
