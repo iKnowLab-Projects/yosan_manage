@@ -46,7 +46,7 @@ export default function Login() {
         name: data.name,
         role: data.role,
       });
-      router.replace("/(app)/mileage");
+      router.replace("/(app)/home");
     } catch (err: any) {
       Alert.alert("로그인 실패", err?.message ?? "오류가 발생했습니다.");
     } finally {
