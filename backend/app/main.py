@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import mimetypes
 from pathlib import Path
@@ -10,6 +11,8 @@ from app.api.v1.endpoints.uploads import UPLOAD_DIR
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.init_db import init_db
+from app.db.session import SessionLocal
+from app.services.reminders import run_appointment_reminders
 
 logging.basicConfig(level=logging.INFO)
 
@@ -89,9 +92,28 @@ def serve_upload(filename: str, request: Request) -> Response:
     )
 
 
+def _run_reminders_once() -> None:
+    db = SessionLocal()
+    try:
+        run_appointment_reminders(db)
+    finally:
+        db.close()
+
+
+async def _appointment_reminder_loop() -> None:
+    """매일 1회 외래 진료일 알림 점검·발송. (중복은 DB unique 로 방지)"""
+    while True:
+        try:
+            await asyncio.to_thread(_run_reminders_once)
+        except Exception:  # noqa: BLE001
+            logging.exception("[reminders] 스케줄러 오류")
+        await asyncio.sleep(24 * 60 * 60)
+
+
 @app.on_event("startup")
-def on_startup() -> None:
+async def on_startup() -> None:
     init_db()
+    asyncio.create_task(_appointment_reminder_loop())
 
 
 @app.get("/health", tags=["meta"])
