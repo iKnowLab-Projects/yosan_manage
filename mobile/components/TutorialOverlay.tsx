@@ -61,6 +61,55 @@ function computeCardTop(spots: TutorialRect[]): number {
   return top;
 }
 
+// 화면 전체를 어둡게 덮되, 강조 영역(holes)만 구멍으로 남기는 어두운 사각형들 산출.
+// (네이티브 마스킹 없이 순수 View 로, 여러 개 구멍도 지원)
+function darkRects(
+  holes: TutorialRect[],
+  W: number,
+  H: number,
+): TutorialRect[] {
+  const yset = new Set<number>([0, H]);
+  for (const h of holes) {
+    yset.add(Math.max(0, Math.min(H, h.y)));
+    yset.add(Math.max(0, Math.min(H, h.y + h.h)));
+  }
+  const yEdges = [...yset].sort((a, b) => a - b);
+  const rects: TutorialRect[] = [];
+
+  for (let i = 0; i < yEdges.length - 1; i++) {
+    const yA = yEdges[i];
+    const yB = yEdges[i + 1];
+    if (yB <= yA) continue;
+    const midY = (yA + yB) / 2;
+
+    // 이 가로 밴드에서 구멍이 차지하는 x구간
+    const xints = holes
+      .filter((h) => h.y <= midY && h.y + h.h >= midY)
+      .map(
+        (h) =>
+          [Math.max(0, h.x), Math.min(W, h.x + h.w)] as [number, number],
+      )
+      .filter(([a, b]) => b > a)
+      .sort((a, b) => a[0] - b[0]);
+
+    const merged: [number, number][] = [];
+    for (const iv of xints) {
+      const last = merged[merged.length - 1];
+      if (last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]);
+      else merged.push([iv[0], iv[1]]);
+    }
+
+    // 구멍의 여집합 = 어둡게 덮을 x구간
+    let cur = 0;
+    for (const [a, b] of merged) {
+      if (a > cur) rects.push({ x: cur, y: yA, w: a - cur, h: yB - yA });
+      cur = Math.max(cur, b);
+    }
+    if (cur < W) rects.push({ x: cur, y: yA, w: W - cur, h: yB - yA });
+  }
+  return rects;
+}
+
 export default function TutorialOverlay({
   steps,
   onDone,
@@ -73,6 +122,13 @@ export default function TutorialOverlay({
   if (!step) return null;
 
   const cardTop = computeCardTop(step.spots);
+  const { width: W, height: H } = Dimensions.get("window");
+  const holes: TutorialRect[] = step.spots.map((s) => ({
+    x: s.x - PAD,
+    y: s.y - PAD,
+    w: s.w + PAD * 2,
+    h: s.h + PAD * 2,
+  }));
 
   const next = () => {
     if (i >= steps.length - 1) onDone();
@@ -83,22 +139,26 @@ export default function TutorialOverlay({
     <Modal visible transparent animationType="fade" onRequestClose={onDone}>
       {/* 탭하면 다음 단계 */}
       <Pressable style={styles.fill} onPress={next}>
-        {/* 나머지 영역을 어둡게 */}
-        <View style={styles.dim} />
+        {/* 강조 영역만 밝게 남기고 나머지를 어둡게 (구멍 뚫기) */}
+        {darkRects(holes, W, H).map((r, idx) => (
+          <View
+            key={`dark-${idx}`}
+            pointerEvents="none"
+            style={[
+              styles.darkCell,
+              { left: r.x, top: r.y, width: r.w, height: r.h },
+            ]}
+          />
+        ))}
 
-        {/* 강조 링 */}
-        {step.spots.map((r, idx) => (
+        {/* 강조 링 (테두리만) */}
+        {holes.map((r, idx) => (
           <View
             key={idx}
             pointerEvents="none"
             style={[
               styles.ring,
-              {
-                left: r.x - PAD,
-                top: r.y - PAD,
-                width: r.w + PAD * 2,
-                height: r.h + PAD * 2,
-              },
+              { left: r.x, top: r.y, width: r.w, height: r.h },
             ]}
           />
         ))}
@@ -128,13 +188,13 @@ export default function TutorialOverlay({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  dim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.72)" },
+  darkCell: { position: "absolute", backgroundColor: "rgba(0,0,0,0.72)" },
   ring: {
     position: "absolute",
     borderWidth: 3,
     borderColor: "#60a5fa",
     borderRadius: 14,
-    backgroundColor: "rgba(96,165,250,0.18)",
+    // 채움 없음(테두리만) — 강조 영역이 원래 밝기로 보이도록
   },
   card: {
     position: "absolute",
