@@ -18,6 +18,7 @@ from app.data.appointment_messages import (
     MILESTONES,
     message_for,
 )
+from app.models.appointment_message import AppointmentMessageTemplate
 from app.models.appointment_reminder import AppointmentReminder
 from app.models.device import DeviceToken
 from app.models.notification import Notification
@@ -26,6 +27,18 @@ from app.models.user import User
 from app.services.push import send_push
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_message(db: Session, milestone: int) -> tuple[str, str]:
+    """관리자가 편집한 메시지가 있으면 그것을, 없으면 코드 기본값을 반환."""
+    row = (
+        db.query(AppointmentMessageTemplate)
+        .filter(AppointmentMessageTemplate.milestone_month == milestone)
+        .first()
+    )
+    if row:
+        return row.title, row.body
+    return message_for(milestone)
 
 
 def add_months(d: date, months: int) -> date:
@@ -64,8 +77,8 @@ def run_appointment_reminders(db: Session, today: date | None = None) -> int:
                 db.rollback()  # 이미 발송됨 → 건너뜀
                 continue
 
-            # 2) 알림 저장 + 푸시 발송
-            title, body = message_for(milestone)
+            # 2) 알림 저장 + 푸시 발송 (관리자 편집 메시지 우선)
+            title, body = resolve_message(db, milestone)
             tokens = [
                 t.token
                 for t in db.query(DeviceToken)
