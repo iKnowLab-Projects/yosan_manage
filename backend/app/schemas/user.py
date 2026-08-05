@@ -58,6 +58,6 @@ class PatientListItem(BaseModel):
     email: EmailStr
     name: str
     is_active: bool
-    last_report_date: Optional[date] = None
-    days_since_last_report: Optional[int] = None
-    missed_today: bool = False
+    last_submission_date: Optional[date] = None  # 최근 설문 제출일
+    days_since_last_submission: Optional[int] = None
+    missed_this_month: bool = False  # 이번 달 설문 미제출

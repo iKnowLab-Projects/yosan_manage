@@ -9,7 +9,7 @@ from app.api.deps import get_current_user, require_admin
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.patient import PatientProfile
-from app.models.report import DailyReport
+from app.models.survey import SurveySubmission
 from app.models.user import User, UserRole
 from app.schemas.auth import ApproveIn
 from app.schemas.user import (
@@ -29,19 +29,21 @@ def list_patients(
     _: User = Depends(require_admin),
 ) -> List[PatientListItem]:
     today = date.today()
+    month_start = today.replace(day=1)  # 이번 달 1일
 
-    last_report_subq = (
+    # 보고가 월간 설문으로 변경됨 → 최근 설문 제출일 기준
+    last_sub_subq = (
         select(
-            DailyReport.patient_id.label("pid"),
-            func.max(DailyReport.report_date).label("last_date"),
+            SurveySubmission.patient_id.label("pid"),
+            func.max(SurveySubmission.check_date).label("last_date"),
         )
-        .group_by(DailyReport.patient_id)
+        .group_by(SurveySubmission.patient_id)
         .subquery()
     )
 
     rows = (
-        db.query(User, last_report_subq.c.last_date)
-        .outerjoin(last_report_subq, last_report_subq.c.pid == User.id)
+        db.query(User, last_sub_subq.c.last_date)
+        .outerjoin(last_sub_subq, last_sub_subq.c.pid == User.id)
         .filter(User.role == UserRole.PATIENT, User.is_active == True)  # noqa: E712
         .order_by(User.created_at.desc())
         .all()
@@ -50,19 +52,19 @@ def list_patients(
     items: List[PatientListItem] = []
     for user, last_date in rows:
         days = None
-        missed_today = True
+        missed_this_month = True
         if last_date is not None:
             days = (today - last_date).days
-            missed_today = last_date < today
+            missed_this_month = last_date < month_start  # 이번 달 제출 없으면 미제출
         items.append(
             PatientListItem(
                 id=user.id,
                 email=user.email,
                 name=user.name,
                 is_active=user.is_active,
-                last_report_date=last_date,
-                days_since_last_report=days,
-                missed_today=missed_today,
+                last_submission_date=last_date,
+                days_since_last_submission=days,
+                missed_this_month=missed_this_month,
             )
         )
     return items

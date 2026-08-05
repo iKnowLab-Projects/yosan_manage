@@ -102,9 +102,9 @@ export type PatientListItem = {
   email: string;
   name: string;
   is_active: boolean;
-  last_report_date: string | null;
-  days_since_last_report: number | null;
-  missed_today: boolean;
+  last_submission_date: string | null;
+  days_since_last_submission: number | null;
+  missed_this_month: boolean;
 };
 
 export type PatientProfile = {

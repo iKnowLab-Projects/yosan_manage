@@ -15,9 +15,9 @@ export default function NotificationsPage() {
 function NotificationsView() {
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [title, setTitle] = useState("오늘의 보고를 잊지 마세요");
+  const [title, setTitle] = useState("이번 달 설문을 잊지 마세요");
   const [body, setBody] = useState(
-    "식단과 건강 상태를 앱에서 보고해 주세요. 보고가 어려우시면 전화 부탁드립니다.",
+    "이번 달 설문을 앱에서 작성해 주세요. 작성이 어려우시면 전화 부탁드립니다.",
   );
   const [category, setCategory] = useState("reminder");
   const [result, setResult] = useState<string | null>(null);
@@ -30,8 +30,8 @@ function NotificationsView() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const missedToday = useMemo(
-    () => patients.filter((p) => p.missed_today),
+  const missedThisMonth = useMemo(
+    () => patients.filter((p) => p.missed_this_month),
     [patients],
   );
 
@@ -44,7 +44,7 @@ function NotificationsView() {
   };
 
   const selectAllMissed = () => {
-    setSelected(new Set(missedToday.map((p) => p.id)));
+    setSelected(new Set(missedThisMonth.map((p) => p.id)));
   };
 
   const clearAll = () => setSelected(new Set());
@@ -88,7 +88,7 @@ function NotificationsView() {
               className="rounded border px-2 py-1"
               onClick={selectAllMissed}
             >
-              오늘 미보고 전체
+              이번 달 미제출 전체
             </button>
             <button
               type="button"
@@ -116,12 +116,14 @@ function NotificationsView() {
                   <p className="text-xs text-slate-500">{p.email}</p>
                 </div>
               </div>
-              {p.missed_today ? (
+              {p.missed_this_month ? (
                 <span className="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                  오늘 미보고
+                  이번 달 미제출
                 </span>
               ) : (
-                <span className="text-xs text-slate-400">최근 {p.last_report_date}</span>
+                <span className="text-xs text-slate-400">
+                  최근 {p.last_submission_date}
+                </span>
               )}
             </label>
           ))}

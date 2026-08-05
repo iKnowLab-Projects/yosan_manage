@@ -131,7 +131,7 @@ export default function RecordsScreen() {
     >
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          인바디(체성분) 결과는 병원 방문(6개월) 시 담당 연구원이 등록합니다.
+          인바디(체성분) 결과는 병원 방문 시 담당 연구원이 등록합니다.
           {"\n"}여기에서 나의 결과와 변화를 확인할 수 있어요.
         </Text>
       </View>
