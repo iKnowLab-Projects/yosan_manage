@@ -22,6 +22,7 @@ from app.models.appointment_reminder import AppointmentReminder
 from app.models.device import DeviceToken
 from app.models.notification import Notification
 from app.models.patient import PatientProfile
+from app.models.user import User
 from app.services.push import send_push
 
 logger = logging.getLogger(__name__)
@@ -88,3 +89,47 @@ def run_appointment_reminders(db: Session, today: date | None = None) -> int:
     if sent:
         logger.info("[reminders] 외래 진료일 알림 %d건 발송", sent)
     return sent
+
+
+def appointment_schedule(db: Session) -> list[dict]:
+    """관리자용 — 환자별 외래 마일스톤 일정과 알림 발송 현황."""
+    sent = {
+        (r.patient_id, r.milestone_month): r.sent_at
+        for r in db.query(AppointmentReminder).all()
+    }
+    rows = (
+        db.query(PatientProfile, User)
+        .join(User, User.id == PatientProfile.user_id)
+        .filter(User.is_active == True)  # noqa: E712
+        .order_by(User.created_at.desc())
+        .all()
+    )
+    result: list[dict] = []
+    for prof, user in rows:
+        if not prof.created_at:
+            continue
+        enrollment = prof.created_at.date()
+        milestones = []
+        for m in MILESTONES:
+            appt = add_months(enrollment, m)
+            reminder_date = appt - timedelta(days=LEAD_DAYS)
+            s = sent.get((prof.user_id, m))
+            milestones.append(
+                {
+                    "milestone": m,
+                    "appointment_date": appt.isoformat(),
+                    "reminder_date": reminder_date.isoformat(),
+                    "sent": s is not None,
+                    "sent_at": s.isoformat() if s else None,
+                }
+            )
+        result.append(
+            {
+                "patient_id": prof.user_id,
+                "name": user.name,
+                "email": user.email,
+                "enrollment_date": enrollment.isoformat(),
+                "milestones": milestones,
+            }
+        )
+    return result

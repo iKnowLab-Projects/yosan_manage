@@ -318,6 +318,35 @@ export async function deleteMealScore(scoreId: number): Promise<void> {
   await api<void>(`/api/v1/meal-scores/${scoreId}`, { method: "DELETE" });
 }
 
+// ---------- 외래 진료일 알림 현황 ----------
+export type AppointmentMilestone = {
+  milestone: number; // 6 | 12 | 18 | 24
+  appointment_date: string; // 예상 외래일 (등록일 + N개월)
+  reminder_date: string; // 알림 발송 예정일 (외래일 D-7)
+  sent: boolean;
+  sent_at: string | null;
+};
+export type AppointmentStatus = {
+  patient_id: number;
+  name: string;
+  email: string;
+  enrollment_date: string;
+  milestones: AppointmentMilestone[];
+};
+
+export async function getAppointmentStatus(): Promise<AppointmentStatus[]> {
+  return api<AppointmentStatus[]>(
+    "/api/v1/notifications/appointment-reminders/status"
+  );
+}
+
+export async function runAppointmentReminders(): Promise<{ sent: number }> {
+  return api<{ sent: number }>(
+    "/api/v1/notifications/appointment-reminders/run",
+    { method: "POST" }
+  );
+}
+
 export type ViewSummary = {
   cardnews_total: number;
   notification_total: number;

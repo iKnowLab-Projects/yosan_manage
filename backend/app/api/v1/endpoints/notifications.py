@@ -120,3 +120,14 @@ def run_appointment_reminders_now(
     from app.services.reminders import run_appointment_reminders
 
     return {"sent": run_appointment_reminders(db)}
+
+
+@router.get("/appointment-reminders/status")
+def appointment_reminders_status(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> list:
+    """환자별 외래 마일스톤 일정 + 알림 발송 현황(관리자 현황판)."""
+    from app.services.reminders import appointment_schedule
+
+    return appointment_schedule(db)
