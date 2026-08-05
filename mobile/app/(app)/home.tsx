@@ -111,7 +111,7 @@ export default function HomeScreen() {
         />
         <Shortcut
           icon={tabIcons.records}
-          label="InBody"
+          label="인바디"
           onPress={() => router.push("/(app)/records")}
         />
         <Shortcut

@@ -74,8 +74,8 @@ export default function MealScoresScreen() {
     >
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          최근 6개월 식사 점수입니다. 파란 점은 나의 점수, 빨간 점은 평균
-          점수예요.
+          최근 6개월 동안 시행한 식사 설문지의 점수입니다. 파란 점은 나의
+          점수, 빨간 점은 모든 참여자들의 평균 점수입니다.
         </Text>
       </View>
 
@@ -90,7 +90,7 @@ export default function MealScoresScreen() {
         <>
           <View style={styles.legend}>
             <LegendDot color="#2563eb" label="나의 점수" />
-            <LegendDot color="#ef4444" label="평균" />
+            <LegendDot color="#ef4444" label="평균 점수" />
           </View>
 
           <View style={styles.chartCard}>

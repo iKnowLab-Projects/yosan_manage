@@ -300,6 +300,7 @@ export type InBodyResult = {
   id: number;
   patient_id: number;
   measured_date: string;
+  uric_acid?: number | null;
   weight_kg?: number | null;
   skeletal_muscle_mass?: number | null;
   body_fat_mass?: number | null;

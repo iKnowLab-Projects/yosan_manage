@@ -58,7 +58,7 @@ export default function Profile() {
   function confirmDeleteAccount() {
     Alert.alert(
       "회원 탈퇴",
-      "탈퇴하면 계정과 모든 데이터(보고·설문·마일리지·InBody·알림 등)가 " +
+      "탈퇴하면 계정과 모든 데이터(보고·설문·마일리지·인바디·알림 등)가 " +
         "영구 삭제되며 복구할 수 없습니다.\n\n정말 탈퇴하시겠어요?",
       [
         { text: "취소", style: "cancel" },
@@ -116,16 +116,11 @@ export default function Profile() {
         <Text style={styles.email}>{me.email}</Text>
       </View>
       <View style={styles.card}>
-        <Row label="전화번호" value={p.phone ?? "—"} />
         <Row label="생년월일" value={p.birth_date ?? "—"} />
         <Row label="신장" value={p.height_cm ? `${p.height_cm} cm` : "—"} />
         <Row
-          label="기준 체중"
+          label="몸무게"
           value={p.baseline_weight_kg ? `${p.baseline_weight_kg} kg` : "—"}
-        />
-        <Row
-          label="기준 요산"
-          value={p.baseline_uric_acid ? `${p.baseline_uric_acid} mg/dL` : "—"}
         />
         <Row label="복용 약물" value={p.medications ?? "—"} />
       </View>

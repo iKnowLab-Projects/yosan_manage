@@ -78,7 +78,7 @@ export default function NotificationsScreen() {
 function labelOf(c: string) {
   if (c === "reminder") return "보고 독촉";
   if (c === "alert") return "긴급";
-  if (c === "inbody") return "InBody 피드백";
+  if (c === "inbody") return "인바디 피드백";
   return "안내";
 }
 
