@@ -21,7 +21,8 @@ import TutorialOverlay, {
   TutorialStep,
 } from "@/components/TutorialOverlay";
 
-const TUTORIAL_KEY = "yosan_tutorial_seen_v1";
+// 계정(user_id)별로 최초 1회만 튜토리얼을 노출한다. (기기 단위가 아니라 계정 단위)
+const tutorialKey = (userId: number) => `yosan_tutorial_seen_v1_${userId}`;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -118,14 +119,14 @@ export default function HomeScreen() {
 
   const finishTutorial = useCallback(() => {
     setTutorial(null);
-    AsyncStorage.setItem(TUTORIAL_KEY, "1").catch(() => {});
-  }, []);
+    if (me) AsyncStorage.setItem(tutorialKey(me.id), "1").catch(() => {});
+  }, [me]);
 
-  // 최초 로그인(=아직 본 적 없음) 시 1회 실행
+  // 이 계정으로 아직 본 적 없으면 1회 실행 (계정별)
   useEffect(() => {
     if (!me || tutorialChecked.current) return;
     tutorialChecked.current = true;
-    AsyncStorage.getItem(TUTORIAL_KEY).then((seen) => {
+    AsyncStorage.getItem(tutorialKey(me.id)).then((seen) => {
       if (!seen) setTimeout(startTutorial, 650); // 레이아웃 완료 후 측정
     });
   }, [me, startTutorial]);
