@@ -37,11 +37,11 @@ function PatientsView() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (filter === "missed") return patients.filter((p) => p.missed_today);
+    if (filter === "missed") return patients.filter((p) => p.missed_this_month);
     return patients;
   }, [patients, filter]);
 
-  const missedCount = patients.filter((p) => p.missed_today).length;
+  const missedCount = patients.filter((p) => p.missed_this_month).length;
 
   return (
     <div>
@@ -49,7 +49,7 @@ function PatientsView() {
         <div>
           <h1 className="text-2xl font-semibold">환자 관리</h1>
           <p className="mt-1 text-sm text-slate-500">
-            전체 {patients.length}명 · 오늘 미보고{" "}
+            전체 {patients.length}명 · 이번 달 미제출{" "}
             <span className="font-semibold text-danger">{missedCount}</span>명
           </p>
         </div>
@@ -60,7 +60,7 @@ function PatientsView() {
             onChange={(e) => setFilter(e.target.value as "all" | "missed")}
           >
             <option value="all">전체 보기</option>
-            <option value="missed">오늘 미보고만</option>
+            <option value="missed">이번 달 미제출만</option>
           </select>
           <Link
             href="/patients/new"
@@ -83,8 +83,8 @@ function PatientsView() {
             <tr>
               <th className="px-4 py-3">이름</th>
               <th className="px-4 py-3">이메일</th>
-              <th className="px-4 py-3">최근 보고일</th>
-              <th className="px-4 py-3">미보고일수</th>
+              <th className="px-4 py-3">최근 제출일</th>
+              <th className="px-4 py-3">경과일</th>
               <th className="px-4 py-3">상태</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -109,21 +109,21 @@ function PatientsView() {
                 <td className="px-4 py-3 font-medium">{p.name}</td>
                 <td className="px-4 py-3 text-slate-600">{p.email}</td>
                 <td className="px-4 py-3 text-slate-600">
-                  {p.last_report_date ?? "—"}
+                  {p.last_submission_date ?? "—"}
                 </td>
                 <td className="px-4 py-3">
-                  {p.days_since_last_report === null
-                    ? "보고 이력 없음"
-                    : `${p.days_since_last_report}일`}
+                  {p.days_since_last_submission === null
+                    ? "제출 이력 없음"
+                    : `${p.days_since_last_submission}일`}
                 </td>
                 <td className="px-4 py-3">
-                  {p.missed_today ? (
+                  {p.missed_this_month ? (
                     <span className="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                      오늘 미보고
+                      이번 달 미제출
                     </span>
                   ) : (
                     <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
-                      오늘 보고
+                      이번 달 제출
                     </span>
                   )}
                 </td>
