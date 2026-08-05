@@ -86,10 +86,13 @@ services:
     depends_on:
       - api
       - web-admin
+    # 호스트 포트. 서버에서 80/443 을 다른 서비스가 이미 쓰면 .env 에서 바꾼다.
+    # (예: HTTP_PORT=8080, HTTPS_PORT=8443) — 단, 자동 HTTPS(A방식)는 80/443 필요.
+    # Cloudflare 터널(B방식)이면 이 포트들은 외부에서 안 쓰이므로 아무 빈 포트로 둬도 됨.
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
