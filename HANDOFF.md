@@ -18,10 +18,24 @@ docker --version && docker compose version
 ```
 > 루트 권한이 없어 Docker 설치가 불가능하면, 관리자에게 **Docker 사용 가능한 리눅스 VM** 을 요청하세요.
 
-### (b) 도메인 준비
-- 도메인 하나의 **A 레코드**가 이 서버의 **공인 IP** 를 가리키게 설정.
-- 방화벽에서 **80, 443** 포트 개방 (Caddy 의 인증서 발급·서비스에 필요).
-- 도메인이 없으면 무료 DuckDNS(`xxx.duckdns.org`) 나 `sslip.io`(IP기반) 도 가능.
+### (b) 외부 노출 — 둘 중 하나
+
+**(A) 공인 IP + 도메인 (기본·권장)**
+- 도메인의 **A 레코드**가 서버 **공인 IP** 를 가리키게 설정.
+- 방화벽에서 **80, 443** 개방 → Caddy 가 Let's Encrypt 로 **HTTPS 자동 발급**.
+- `.env.production` 에 `DOMAIN`, `ACME_EMAIL` 만 채우면 됨. (`SITE_ADDRESS`/`CLOUDFLARE_TUNNEL_TOKEN` 는 비움)
+- 도메인이 없으면 무료 DuckDNS(`xxx.duckdns.org`)·`sslip.io` 도 가능.
+
+**(B) 공인 IP 없음 / NAT 뒤 → Cloudflare Named Tunnel (고정 주소)**
+지금 쓰던 quick tunnel 은 재시작마다 주소가 바뀌지만, **Named Tunnel 은 고정 주소**다.
+1. Cloudflare Zero Trust → **터널 생성** → **토큰** 발급.
+2. 공개 호스트명(예: `api.example.com`) → 서비스 **`http://caddy:80`** 라우팅 지정.
+3. `.env.production` 에 `CLOUDFLARE_TUNNEL_TOKEN=<토큰>` + `SITE_ADDRESS=:80` 설정.
+4. 터널 포함해서 기동:
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production --profile tunnel up -d --build
+   ```
+- 이 경우 서버에 **공인 IP·포트개방 불필요**(Cloudflare 가 엣지에서 TLS 종료). 모바일 `apiBase` = `https://api.example.com`(고정).
 
 ---
 
