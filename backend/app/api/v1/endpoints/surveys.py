@@ -206,6 +206,71 @@ def get_submission(
     return SurveySubmissionOut.model_validate(row)
 
 
+@router.post(
+    "/patient/{patient_id}",
+    response_model=SurveySubmissionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def admin_submit_for_patient(
+    patient_id: int,
+    payload: SurveySubmitIn,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> SurveySubmissionOut:
+    """관리자가 환자를 대신하여 설문을 입력한다(대면 작성 등)."""
+    patient = db.get(User, patient_id)
+    if not patient or patient.role != UserRole.PATIENT:
+        raise HTTPException(status_code=404, detail="환자를 찾을 수 없습니다.")
+    profile = (
+        db.query(PatientProfile)
+        .filter(PatientProfile.user_id == patient_id)
+        .first()
+    )
+    if not profile or not profile.survey_group:
+        raise HTTPException(
+            status_code=400,
+            detail="환자의 설문 그룹(B/C)이 지정되지 않았습니다.",
+        )
+    group = profile.survey_group
+    valid_codes = all_question_codes(group)
+
+    submitted_codes = {a.question_code for a in payload.answers}
+    missing = valid_codes - submitted_codes
+    if missing:
+        raise HTTPException(status_code=400, detail=f"누락된 응답: {sorted(missing)}")
+    unknown = submitted_codes - valid_codes
+    if unknown:
+        raise HTTPException(
+            status_code=400, detail=f"이 그룹에 없는 문항: {sorted(unknown)}"
+        )
+
+    submission = SurveySubmission(
+        patient_id=patient_id,
+        survey_group=group,
+        check_date=payload.check_date or date.today(),
+        notes=payload.notes,
+    )
+    for a in payload.answers:
+        opts = question_options(group, a.question_code)
+        if opts is None or not (0 <= a.choice_index < len(opts)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{a.question_code}의 choice_index 범위 오류",
+            )
+        submission.answers.append(
+            SurveyAnswer(
+                question_code=a.question_code,
+                choice_index=a.choice_index,
+                choice_label=opts[a.choice_index],
+            )
+        )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+    _auto_complete_mileage(db, patient_id, submission.check_date, submission.id)
+    return SurveySubmissionOut.model_validate(submission)
+
+
 @router.get("/patient/{patient_id}", response_model=List[SurveySubmissionOut])
 def patient_submissions(
     patient_id: int,

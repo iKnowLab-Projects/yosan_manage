@@ -7,6 +7,7 @@ import AuthGuard from "@/components/AuthGuard";
 import MileagePanel from "@/components/MileagePanel";
 import InBodyPanel from "@/components/InBodyPanel";
 import MealScorePanel from "@/components/MealScorePanel";
+import SurveyEntryPanel from "@/components/SurveyEntryPanel";
 import { api, DailyReport, Patient, SurveySubmission } from "@/lib/api";
 
 const MEAL_LABEL: Record<string, string> = {
@@ -49,6 +50,11 @@ function PatientDetail() {
       }
     })();
   }, [id]);
+
+  const reloadSurveys = () =>
+    api<SurveySubmission[]>(`/api/v1/surveys/patient/${id}`)
+      .then(setSurveys)
+      .catch(() => {});
 
   if (error)
     return (
@@ -113,6 +119,12 @@ function PatientDetail() {
       <InBodyPanel patientId={patient.id} />
 
       <MealScorePanel patientId={patient.id} />
+
+      <SurveyEntryPanel
+        patientId={patient.id}
+        group={prof.survey_group ?? null}
+        onSubmitted={reloadSurveys}
+      />
 
       <section>
         <h2 className="mb-4 text-lg font-semibold">
