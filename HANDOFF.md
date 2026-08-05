@@ -110,6 +110,45 @@ docker compose -f docker-compose.prod.yml logs -f caddy   # 인증서 발급 로
 
 ---
 
+## 1-B. 서버 관리자(sysadmin)에게 요청할 것
+
+우리 Docker 스택은 **기존 서버 설정을 건드리지 않는다.** 아래 "연결"만 관리자에게 요청하면 된다.
+
+### 경우 ① 서버에 기존 웹서비스가 없음 (80/443 비어있음)
+관리자 요청:
+1. **DNS A 레코드**: `yosan.<도메인>` → **[서버 공인 IP]**
+2. **인바운드 허용**: 이 서버로 오는 **TCP 80, 443** 오픈 (NAT 뒤면 80/443 → 서버로 포트포워딩)
+
+우리 쪽: `.env.production` 에 `DOMAIN=yosan.<도메인>` 만 채우고 기본 기동.
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+### 경우 ② 서버에 이미 웹서비스(nginx/Apache 등)가 80/443 사용 중
+관리자 요청:
+1. **DNS A 레코드**: `yosan.<도메인>` → 서버(또는 기존 프록시)가 보는 주소
+2. **기존 프록시에 vhost 1개 추가** — 우리 도메인만 우리 포트로 넘김 (기존 사이트는 그대로):
+   ```nginx
+   server {
+       server_name yosan.<도메인>;
+       # TLS 인증서(certbot 등)로 이 도메인 HTTPS 처리
+       location / {
+           proxy_pass http://127.0.0.1:<PORT>;   # ← 우리 스택 포트(아래에서 자동 배정)
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           proxy_request_buffering off;           # 업로드/동영상 스트리밍(Range) 통과
+       }
+   }
+   ```
+
+우리 쪽: **포트 자동 배정 스크립트**로 기동 (8080 이 이미 쓰이면 빈 포트를 알아서 잡음):
+```bash
+./scripts/deploy-behind-proxy.sh
+# → 출력된  http://127.0.0.1:<PORT>  를 위 vhost 의 proxy_pass 에 넣어달라고 관리자에게 전달
+```
+
+> 요약 — 관리자 몫: **경우① DNS+포트개방 / 경우② DNS+vhost 1개.** 그 외 기존 서비스는 건드리지 않는다.
+
 ## 2. 인터넷이 막힌 서버 (오프라인 이식)
 
 인터넷 없는 서버라면, **인터넷 되는 PC**에서 이미지를 만들어 파일로 옮깁니다.
