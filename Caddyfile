@@ -1,0 +1,42 @@
+# 통합 배포용 Caddy 설정 — 단일 도메인.
+# Caddy 가 Let's Encrypt 인증서를 자동 발급/갱신한다.
+# 사전 준비: DOMAIN 의 A 레코드가 이 서버의 공인 IP를 가리켜야 함.
+
+{
+	email {$ACME_EMAIL}
+	# 인증서 발급 디버깅 시 아래 staging 을 임시 활성화(rate limit 회피):
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN} {
+	# --- 백엔드로 라우팅되는 경로 ---
+	@backend path /api/* /uploads/* /docs* /openapi.json /health
+	handle @backend {
+		reverse_proxy api:26610 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			# 동영상 스트리밍(Range) 은 reverse_proxy 가 그대로 통과시킴
+			flush_interval -1
+		}
+	}
+
+	# --- 그 외 전부 관리자 웹(Next.js)으로 ---
+	handle {
+		reverse_proxy web-admin:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# 텍스트류만 압축(동영상/이미지는 제외되어 Range 유지)
+	encode zstd gzip
+
+	log {
+		output stdout
+		format console
+	}
+}
