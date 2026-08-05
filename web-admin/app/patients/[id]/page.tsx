@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import MileagePanel from "@/components/MileagePanel";
@@ -27,11 +27,13 @@ export default function PatientDetailPage() {
 
 function PatientDetail() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = Number(params?.id);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [surveys, setSurveys] = useState<SurveySubmission[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +58,24 @@ function PatientDetail() {
       .then(setSurveys)
       .catch(() => {});
 
+  async function deletePatient() {
+    if (!patient) return;
+    if (
+      !confirm(
+        `${patient.name} (${patient.email}) 계정과 모든 데이터(설문·마일리지·인바디 등)를 영구 삭제할까요?\n되돌릴 수 없습니다.`
+      )
+    )
+      return;
+    setDeleting(true);
+    try {
+      await api(`/api/v1/patients/${patient.id}`, { method: "DELETE" });
+      router.push("/patients");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "삭제 실패");
+      setDeleting(false);
+    }
+  }
+
   if (error)
     return (
       <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
@@ -66,12 +86,24 @@ function PatientDetail() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <Link href="/patients" className="text-sm text-brand-600 hover:underline">
-          ← 환자 목록
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold">{patient.name}</h1>
-        <p className="text-sm text-slate-500">{patient.email}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <Link
+            href="/patients"
+            className="text-sm text-brand-600 hover:underline"
+          >
+            ← 환자 목록
+          </Link>
+          <h1 className="mt-2 text-2xl font-semibold">{patient.name}</h1>
+          <p className="text-sm text-slate-500">{patient.email}</p>
+        </div>
+        <button
+          onClick={deletePatient}
+          disabled={deleting}
+          className="mt-6 rounded border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+        >
+          {deleting ? "삭제 중..." : "계정 삭제"}
+        </button>
       </div>
 
       <section className="rounded-lg border bg-white p-6">
