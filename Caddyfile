@@ -8,7 +8,9 @@
 	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-{$DOMAIN} {
+# SITE_ADDRESS: compose 가 미설정 시 DOMAIN 으로 채운다(자동 HTTPS).
+# Cloudflare 터널 뒤에서 쓸 땐 SITE_ADDRESS=:80 으로 설정(엣지에서 TLS 종료).
+{$SITE_ADDRESS} {
 	# --- 백엔드로 라우팅되는 경로 ---
 	@backend path /api/* /uploads/* /docs* /openapi.json /health
 	handle @backend {

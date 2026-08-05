@@ -93,10 +93,26 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
+      # 미설정 시 DOMAIN 으로 자동 HTTPS. Cloudflare 터널 뒤: SITE_ADDRESS=:80
+      SITE_ADDRESS: ${SITE_ADDRESS:-${DOMAIN}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+
+  # (선택) Cloudflare Named Tunnel — 공인 IP/포트개방 없이 "고정 주소"로 노출.
+  # profile "tunnel" 이라 기본 up 엔 안 뜬다. quick tunnel 과 달리 주소가 고정된다.
+  # 준비: Cloudflare Zero Trust 에서 터널 생성 → 토큰 발급, 공개 호스트명(예: api.example.com)을
+  #       서비스 http://caddy:80 으로 라우팅 지정. 그리고 SITE_ADDRESS=:80 로 실행.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
 
 volumes:
   yosan_pgdata:
