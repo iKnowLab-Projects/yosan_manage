@@ -6,6 +6,7 @@
 
 | 문서 | 내용 |
 |---|---|
+| **[HANDOFF.md](HANDOFF.md)** | **⭐ Docker 원클릭 설치·이식 가이드** — 새 서버에 전체 시스템(백엔드+관리자+DB+HTTPS) 배포, 오프라인 이식, 데이터 이전, 모바일 빌더 |
 | **[REPORT.md](REPORT.md)** | 시스템 설계 및 구현 보고서 — 도메인, ER, API, 모바일 흐름 전반 (현재 v0.4) |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | 운영 배포 가이드 — Caddy + Let's Encrypt + 자체 도메인으로 Cloudflare 임시 터널 종료 |
 | **[DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md)** | 새 디바이스에서 백지 상태로부터 동일 환경 재현 절차 |
@@ -13,6 +14,27 @@
 | **[web-admin/README.md](web-admin/README.md)** | 관리자 웹 모듈 사용법 |
 | **[mobile/README.md](mobile/README.md)** | 모바일 앱 사용법 |
 | **[mobile/BUILD.md](mobile/BUILD.md)** | APK 빌드/배포 상세 가이드 |
+
+## ⚡ 빠른 설치 (Docker 원클릭)
+
+호스트에 **Docker + Docker Compose 만** 있으면 전체 서버(백엔드 + 관리자 웹 + DB + HTTPS)가 한 번에 뜹니다. (Python·Node·Postgres 불필요 — 전부 컨테이너 내부)
+
+```bash
+# 1) 소스 가져오기
+git clone <repo> yosan && cd yosan
+
+# 2) 환경변수 설정 (CHANGE_ME 값·DOMAIN 채우기)
+cp .env.production.example .env.production
+nano .env.production
+
+# 3) 전체 스택 기동 (빌드 + 실행)
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+기동 후: `https://<DOMAIN>/`=관리자 웹, `/api`·`/uploads`=백엔드, HTTPS 자동 발급.
+모바일 앱은 `apiBase`를 `https://<DOMAIN>`으로 두면 됩니다.
+
+> 사전 준비(Docker 설치·도메인/터널 선택), 오프라인 이식, 기존 데이터 이전(DB·업로드), 모바일 빌더 컨테이너 사용법 등 **전체 절차는 [HANDOFF.md](HANDOFF.md)** 를 참고하세요.
 
 ## 모듈 구성
 
