@@ -46,6 +46,28 @@ docker --version && docker compose version
    서버의 기존 nginx/Caddy(80/443)가 우리 도메인을 `http://127.0.0.1:8080` 으로 넘기도록 설정. (TLS 는 기존 프록시가 처리)
 3. **전용 서버/VM 사용** — 가장 단순. 이 스택만 도는 곳이면 기본 80/443 그대로.
 
+### (d) 공유기 뒤 자체 서버 + DuckDNS (터널 없이 고정 주소) — 상세
+공인 IP 는 있는데 서버가 **공유기/방화벽 뒤**이고, 고정 IP·자체 도메인이 없을 때. (Cloudflare 터널 불필요)
+
+**흐름:** 인터넷 → 공유기 공인IP:443 → (포트포워딩) → 서버:443 → Caddy → 경로별 라우팅
+
+1. **CGNAT 여부 먼저 확인** (이게 안 되면 포트포워딩 자체가 불가 → 이 경우엔 터널 필요)
+   - 공유기 관리페이지의 **WAN IP** 와 [whatismyip.com] 의 IP 를 비교.
+   - **같으면** 진짜 공인 IP → 진행 가능. **다르면**(WAN 이 100.64.x 등 사설) CGNAT → ISP 에 공인 IP 요청하거나 터널 사용.
+2. **서버의 내부 IP 고정** (예: `192.168.0.10`). 공유기 DHCP 예약 권장.
+3. **DuckDNS 준비**: `duckdns.org` 로그인(Google/GitHub) → 서브도메인 생성(예 `yosan`) → **토큰 복사**.
+   `.env.production` 에: `DOMAIN=yosan.duckdns.org`, `DUCKDNS_SUBDOMAIN=yosan`, `DUCKDNS_TOKEN=<토큰>`.
+4. **공유기 포트포워딩**: 외부 **80 → 192.168.0.10:80**, **443 → 192.168.0.10:443** (TCP). (HTTP_PORT/HTTPS_PORT 를 바꿨다면 그 포트로)
+5. **기동** (DuckDNS 갱신 컨테이너 포함):
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production --profile duckdns up -d --build
+   ```
+   → DuckDNS 가 `yosan.duckdns.org` 를 현재 공인 IP 로 유지하고, Caddy 가 Let's Encrypt 로 **HTTPS 자동 발급**.
+   → 관리자 `https://yosan.duckdns.org/`, 모바일 apiBase `https://yosan.duckdns.org`.
+
+> ⚠️ 일부 가정용 회선은 **인바운드 80/443 을 차단**한다. 그러면 Let's Encrypt HTTP 인증(포트 80)이 실패한다.
+> 이때는 (1) ISP 에 차단 해제 요청, 또는 (2) Caddy 의 **DNS-01 인증**(DNS 제공자 API 필요), 또는 (3) Cloudflare 터널로 우회.
+
 ---
 
 ## 1. 배포 (원클릭)
