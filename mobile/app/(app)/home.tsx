@@ -194,16 +194,12 @@ export default function HomeScreen() {
         </View>
         <View style={styles.infoGrid}>
           <InfoCell
-            label="기준 체중"
-            value={p.baseline_weight_kg ? `${p.baseline_weight_kg} kg` : "—"}
-          />
-          <InfoCell
-            label="기준 요산"
-            value={p.baseline_uric_acid ? `${p.baseline_uric_acid} mg/dL` : "—"}
-          />
-          <InfoCell
             label="신장"
             value={p.height_cm ? `${p.height_cm} cm` : "—"}
+          />
+          <InfoCell
+            label="몸무게"
+            value={p.baseline_weight_kg ? `${p.baseline_weight_kg} kg` : "—"}
           />
         </View>
         <TouchableOpacity
