@@ -106,3 +106,17 @@ def mark_read(
         raise HTTPException(status_code=404, detail="알림을 찾을 수 없습니다.")
     notif.read = True
     db.commit()
+
+
+@router.post("/appointment-reminders/run")
+def run_appointment_reminders_now(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    """외래 진료일 알림을 수동으로 즉시 점검·발송(테스트/보정용).
+
+    평소에는 매일 자동 실행되며, 중복 발송은 DB unique 로 방지된다.
+    """
+    from app.services.reminders import run_appointment_reminders
+
+    return {"sent": run_appointment_reminders(db)}

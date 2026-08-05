@@ -79,6 +79,7 @@ function labelOf(c: string) {
   if (c === "reminder") return "보고 독촉";
   if (c === "alert") return "긴급";
   if (c === "inbody") return "인바디 피드백";
+  if (c === "appointment") return "외래 진료 안내";
   return "안내";
 }
 
