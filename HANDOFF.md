@@ -29,13 +29,13 @@ docker --version && docker compose version
 **(B) 공인 IP 없음 / NAT 뒤 → Cloudflare Named Tunnel (고정 주소)**
 지금 쓰던 quick tunnel 은 재시작마다 주소가 바뀌지만, **Named Tunnel 은 고정 주소**다.
 1. Cloudflare Zero Trust → **터널 생성** → **토큰** 발급.
-2. 공개 호스트명(예: `api.example.com`) → 서비스 **`http://caddy:80`** 라우팅 지정.
+2. 공개 호스트명(예: `yosan.cmilab.kr`) → 서비스 **`http://caddy:80`** 라우팅 지정.
 3. `.env.production` 에 `CLOUDFLARE_TUNNEL_TOKEN=<토큰>` + `SITE_ADDRESS=:80` 설정.
 4. 터널 포함해서 기동:
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.production --profile tunnel up -d --build
    ```
-- 이 경우 서버에 **공인 IP·포트개방 불필요**(Cloudflare 가 엣지에서 TLS 종료). 모바일 `apiBase` = `https://api.example.com`(고정).
+- 이 경우 서버에 **공인 IP·포트개방 불필요**(Cloudflare 가 엣지에서 TLS 종료). 모바일 `apiBase` = `https://yosan.cmilab.kr`(고정).
 
 ### (c) 서버에 이미 다른 서비스가 돌고 있는 경우 (포트 충돌)
 `80/443` 을 이미 다른 서비스가 쓰고 있으면 우리 Caddy 가 그 포트를 못 잡는다. 선택지:
@@ -50,7 +50,7 @@ docker --version && docker compose version
    HTTPS_PORT=8443       # 안 쓰지만 443 충돌 피하려 빈 포트로
    ```
    그리고 **기존 프록시에 우리 도메인용 vhost 추가**를 관리자에게 요청:
-   `yosan.도메인` (TLS 인증서 포함) → `http://127.0.0.1:8080` 로 reverse_proxy.
+   `yosan.cmilab.kr` (TLS 인증서 포함) → `http://127.0.0.1:8080` 로 reverse_proxy.
    → 우리 Caddy 는 8080 에서 HTTP 로 받아 `/`(관리자)·`/api`·`/uploads` 경로만 나눠주고, 바깥 TLS·도메인은 기존 프록시가 담당.
 3. **전용 서버/VM 사용** — 가장 단순. 이 스택만 도는 곳이면 기본 80/443 그대로.
 
@@ -116,21 +116,21 @@ docker compose -f docker-compose.prod.yml logs -f caddy   # 인증서 발급 로
 
 ### 경우 ① 서버에 기존 웹서비스가 없음 (80/443 비어있음)
 관리자 요청:
-1. **DNS A 레코드**: `yosan.<도메인>` → **[서버 공인 IP]**
+1. **DNS A 레코드**: `yosan.cmilab.kr` → **[서버 공인 IP]**
 2. **인바운드 허용**: 이 서버로 오는 **TCP 80, 443** 오픈 (NAT 뒤면 80/443 → 서버로 포트포워딩)
 
-우리 쪽: `.env.production` 에 `DOMAIN=yosan.<도메인>` 만 채우고 기본 기동.
+우리 쪽: `.env.production` 에 `DOMAIN=yosan.cmilab.kr` 만 채우고 기본 기동.
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
 ### 경우 ② 서버에 이미 웹서비스(nginx/Apache 등)가 80/443 사용 중
 관리자 요청:
-1. **DNS A 레코드**: `yosan.<도메인>` → 서버(또는 기존 프록시)가 보는 주소
+1. **DNS A 레코드**: `yosan.cmilab.kr` → 서버(또는 기존 프록시)가 보는 주소
 2. **기존 프록시에 vhost 1개 추가** — 우리 도메인만 우리 포트로 넘김 (기존 사이트는 그대로):
    ```nginx
    server {
-       server_name yosan.<도메인>;
+       server_name yosan.cmilab.kr;
        # TLS 인증서(certbot 등)로 이 도메인 HTTPS 처리
        location / {
            proxy_pass http://127.0.0.1:<PORT>;   # ← 우리 스택 포트(아래에서 자동 배정)
